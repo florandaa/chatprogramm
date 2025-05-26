@@ -37,7 +37,7 @@ def discovery_loop():
                 print(f"[JOIN] {handle} bereits vorhanden, aktualisiere Eintrag.")
 
         elif command == "WHO":
-            print(f"Received WHO request from {addr[0]}")
+            print(f"WHO Anfrage von {addr[0]}")
             entries = [f"{h} {ip} {p}" for h, (ip, p) in participants.items()]
             response = "KNOWUSERS " + ", ".join(entries)
             socket1.sendto(response.encode('utf-8'), (addr[0], 5000))
