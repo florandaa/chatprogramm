@@ -1,5 +1,5 @@
 import threading
-from network import load_config, udp_listener, tcp_server, udp_send, tcp_send
+from network.network import load_config, udp_listener, tcp_server, udp_send, tcp_send
 
 cfg = load_config()
 
