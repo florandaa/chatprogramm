@@ -2,6 +2,9 @@ import toml
 import threading
 
 config = toml.load('config.toml')
+handle = config['handle']
+tcp_port = config['port'][0]
+udp_port = config['port'][1]
 whoisport = config['whoisport']
 
 import socket
