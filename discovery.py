@@ -13,10 +13,13 @@ import socket
 
 socket1 =socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 # Erstellen eines UDP Sockets
+
 socket1.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR,1)
 # Erlauben, dass der Socket die Adresse wiederverwendet
+
 socket1.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST,1)
 # Erlauben, dass der Socket Broadcast-Nachrichten sendet
+
 socket1.bind(('',whoisport))
 #Verbindung des Sockets mit dem Port
 
