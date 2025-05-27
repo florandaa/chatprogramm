@@ -1,0 +1,54 @@
+def start_cli();
+print("hallo")
+print("gib 'exit' ein, um das programm zu beenden.\n")
+
+while True:
+    nachricht = input("Du: ")
+
+    if nachricht.lower() == "exit":
+        print("Chat wird beendet.")
+        break
+
+chat_verlauf = []
+benutzername = "mo"
+
+def start_cli():
+    global benutzername
+    print("willkommen")
+    print("Verfügbare Befehle: /hilfe, /name[name], /verlauf, exit\n")
+
+    while True:
+        eingabe = input("{benutzername}: ")
+
+        if eingabe.lower() == "exit":
+            print("Chat wird beendet.")
+            break
+
+            elif eingabe.lower() == "/hilfe":
+                print("Befehle:")
+                print("/hilfe   - Zeigt diese Hilfe an")
+                print("/name [name]  -  Ändert deinen Namen")
+                print("/verlauf  -  Zeigt alle gesendeten Nachrichten ")
+                print(" exit - Beendet den Chat")
+
+                elif eingabe.lower().startswitch("/name "):
+                    teile = eingabe.split(" ", 1)
+                    if len(teile) == 2 und teile[1].strip() != "":
+                        benutzername = teile[1].strip()
+                        print("Benutzername geändert zu: {Benutzername}")
+                        else:
+                            print("Fehler: Bitte gib einen Namen an. Beispiel: /name Mo")
+                            
+                            elif eingabe.lower() == "/verlauf":
+                                if not chat_verlauf:
+                                    print ("Noch keine Nachrichten gespeichert.")
+                                    else :
+                                        print("Gespeicherte Nachrichten":)
+                                        for nachricht in chat_verlauf:
+                                            print(nachricht)
+
+                                            else:
+                                                # normale Nachricht
+                                                nachricht = f"{benutzername}: {eingabe}"
+                                                chat_verlauf.append(nachricht)
+                                                print("Nachricht gesendet:", nachricht)
