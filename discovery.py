@@ -54,3 +54,7 @@ def discovery_loop():
                 print(f"[LEAVE] {handle} nicht gefunden. ")
 
 threading.Thread(target=discovery_loop, daemon=True).start()
+
+import time
+while True:
+    time.sleep(1)
