@@ -1,3 +1,52 @@
+# === Konfigurations- und Systemdateien ===
 config.toml
 .DS_Store
-.venv
+
+# === Virtuelle Umgebungen ===
+venv/
+.venv/
+
+# === Python-Cache-Dateien ===
+__pycache__/
+*.py[cod]
+*$py.class
+
+# === Editor-/IDE-Dateien ===
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# === Build-Ordner ===
+build/
+dist/
+*.egg-info/
+
+# === Logdateien ===
+*.log
+
+# === Unit-Test-Ausgaben ===
+htmlcov/
+.coverage
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+.pytest_cache/
+
+# === Sonstige temporäre Dateien ===
+*.tmp
+*.swp
+*.bak
+
+# === Jupyter Notebooks Checkpoints (falls du welche nutzt) ===
+.ipynb_checkpoints/
+
+# === Git-spezifisches ===
+*.orig
+
+# === CLI-Tools / Pipenv / Poetry (optional, je nach Nutzung) ===
+pip-log.txt
+pip-delete-this-directory.txt
+poetry.lock
+Pipfile.lock

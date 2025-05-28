@@ -2,7 +2,7 @@ import socket # Für Netzwerk-Kommunikation (UDP und TCP)
 import threading  # Um Server/Listener im Hintergrund laufen zu lassen
 import toml # Zum Einlesen der Konfigurationsdatei (.toml)
 
-def load_config(path="config.toml"): # config.toml laden um in main.py ports und benutzernamen zu laden
+def load_config(path="/config/config.toml"): # config.toml laden um in main.py ports und benutzernamen zu laden
     with open(path, "r") as f:
         return toml.load(f)
 
