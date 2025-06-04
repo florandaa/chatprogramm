@@ -1,34 +1,36 @@
-chat_verlauf = []
-benutzername = "mo"
+chat_verlauf = [] # Liste zum Speichern des Chatverlaufs
+benutzername = "mo" 
 
-def start_cli():
-    global benutzername
-    print("willkommen")
+def start_cli(): # Funktion zum Starten der CLI
+    global benutzername # Erlaubt veränderung des globalen Benutzernamens
+    print("willkommen") 
     print("Verfügbare Befehle: /hilfe, /name [name], /verlauf, exit\n")
 
-    while True:
-        eingabe = input(f"{benutzername}: ")
+    while True: 
+        eingabe = input(f"{benutzername}: ").strip() # Eingabeaufforderung für den Benutzer
 
-        if eingabe.lower() == "exit":
+        if eingabe.lower() == "exit": # Beenden des Chats
             print("Chat wird beendet.")
             break
+        
+        elif eingabe.lower() == "/hilfe": 
+            zeige_hilfe()
 
-        elif eingabe.lower() == "/hilfe":
-            print("Befehle:")
-            print("/hilfe   - Zeigt diese Hilfe an")
-            print("/name [name]  -  Ändert deinen Namen")
-            print("/verlauf  -  Zeigt alle gesendeten Nachrichten ")
-            print("exit - Beendet den Chat")
-
-        elif eingabe.lower().startswith("/name "):
+        elif eingabe.lower().startswith("/name ").strip():
             teile = eingabe.split(" ", 1)
-            if len(teile) == 2 and teile[1].strip() != "":
-                benutzername = teile[1].strip()
-                print(f"Benutzername geändert zu: {benutzername}")
-            else:
-                print("Fehler: Bitte gib einen Namen an. Beispiel: /name Mo")
 
-        elif eingabe.lower() == "/verlauf":
+            if len(teile) == 2 and teile[1].strip() != "":
+                neuer_name = teile[1].strip()
+                if neuer_name:  # Überprüfen, ob der neue Name nicht leer ist
+                 benutzername = neuer_name
+                    print(f"Benutzername wird geändert von {benutzername} zu {neuer_name}")
+                
+                else:
+                print("Fehler: Bitte gib einen Namen an. Beispiel: /name Mo")
+            else:
+                print("Fehler: Ungültiger Befehl. Beispiel: /name Mo")
+                
+        elif eingabe.lower() == "/verlauf".strip():
             if not chat_verlauf:
                 print("Noch keine Nachrichten gespeichert.")
             else:
@@ -38,10 +40,24 @@ def start_cli():
 
         else:
             # normale Nachricht
+           if eingabe:
             nachricht = f"{benutzername}: {eingabe}"
             chat_verlauf.append(nachricht)
             print("Nachricht gesendet:", nachricht)
+            else:
+                print("Fehler: Nachricht darf nicht leer sein.") # Leerzeilen vermeiden
 
+        def zeige_hilfe():# Funktion zum Anzeigen der Hilfe
+            print("Befehle:")
+            print("/hilfe   - Zeigt diese Hilfe an") 
+            print("/name [name]  -  Ändert deinen Namen")
+            print("/verlauf  -  Zeigt alle gesendeten Nachrichten ")
+            print("exit - Beendet den Chat")
+
+            def speichere_verlauf(): # Funktion zum Speichern des Chatverlaufs in eine Datei
+                with open("chat_verlauf.txt", "w", encoding="utf-8") as datei:
+                    for nachricht in chat_verlauf:
+                        datei.write(nachricht + "\n")
 # Zum Starten der CLI
 if __name__ == "__main__":
     start_cli()
