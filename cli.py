@@ -1,5 +1,5 @@
 chat_verlauf = [] # Liste zum Speichern des Chatverlaufs
-benutzername = "mo" 
+benutzername = "Benutzer" # Standard-Benutzername
 
 def zeige_hilfe():# Funktion zum Anzeigen der Hilfe
     print("Befehle:")
@@ -38,7 +38,6 @@ def start_cli(): # Funktion zum Starten der CLI
                 if neuer_name:  # Überprüfen, ob der neue Name nicht leer ist
                  print(f"Benutzername wird geändert von {benutzername} zu {neuer_name}")
                  benutzername = neuer_name
-                
                 else:
                 print("Fehler: Bitte gib einen Namen an. Beispiel: /name Mo")
             else:
