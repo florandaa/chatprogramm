@@ -39,7 +39,7 @@ def start_cli(): # Funktion zum Starten der CLI
                  print(f"Benutzername wird geändert von {benutzername} zu {neuer_name}")
                  benutzername = neuer_name
                 else:
-                print("Fehler: Bitte gib einen Namen an. Beispiel: /name Mo")
+                    print("Fehler: Bitte gib einen Namen an. Beispiel: /name Mo")
             else:
                 print("Fehler: Ungültiger Befehl. Beispiel: /name Mo")
                 
@@ -54,10 +54,10 @@ def start_cli(): # Funktion zum Starten der CLI
         else:
             # normale Nachricht
            if eingabe:
-            nachricht = f"{benutzername}: {eingabe}"
-            chat_verlauf.append(nachricht)
-            print("Nachricht gesendet:", nachricht)
-            else:
+                nachricht = f"{benutzername}: {eingabe}"
+                chat_verlauf.append(nachricht)
+                print("Nachricht gesendet:", nachricht)
+           else:
                 print("Fehler: Nachricht darf nicht leer sein.") # Leerzeilen vermeiden
 
 # Zum Starten der CLI
