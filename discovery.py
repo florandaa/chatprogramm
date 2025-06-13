@@ -33,6 +33,7 @@ participants = {}
 
 ## @brief Eine Endlosschleife, die auf eingehende Nachrichten wartet(Sie empfängt dauerhaft UDP-Nachrichten)
 def discovery_loop():
+
     while True:
         data, addr = socket1.recvfrom(1024) 
         ## data=Inhalt, addr=(IP,Port des Absenders)-Empfangen von Daten (max. 1024 Bytes)
