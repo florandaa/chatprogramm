@@ -2,7 +2,7 @@
 # @brief Discovery-Dienst für ein Peer-to-Peer-Netzwerk
 # @details 
 # Verwaltet Teilnehmerinformationen über UDP-Nachrichten, verarbeitet JOIN, WHO und LEAVE Befehle.
-# @brief Einfache Implementierung eines Discovery-Dienstes für ein Peer-to-Peer-Netzwerk
+# Verarbeitet Anfragen von Clients, die Informationen über andere Teilnehmer im Netzwerk benötigen.
 
 import toml
 import threading
