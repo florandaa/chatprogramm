@@ -31,7 +31,7 @@ socket1.bind(('',whoisport))
 ## Dictionary zur Speicherung der Teilnehmer (Handle: (IP, Port))
 participants = {}
 
-##Eine Endlosschleife, die auf eingehende Nachrichten wartet(Sie empfängt dauerhaft UDP-Nachrichten)
+## @brief Eine Endlosschleife, die auf eingehende Nachrichten wartet(Sie empfängt dauerhaft UDP-Nachrichten)
 def discovery_loop():
     while True:
         data, addr = socket1.recvfrom(1024) 
