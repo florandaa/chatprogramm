@@ -57,6 +57,7 @@ def discovery_loop():
             port = int(parts[2]) ## Portnummer
             ip = addr[0] ## IP-Adresse des Absenders
             participants[handle] = (ip, port) ## Speichern des Teilnehmers im Dictionary
+            
             if handle not in participants:
                 participants[handle] = (ip, port) ## Hinzufügen des Teilnehmers...
                 print(f"[JOIN] {handle} hinzugefügt: {ip, port}")
@@ -83,7 +84,7 @@ def discovery_loop():
                 print(f"[LEAVE] {handle} wurde entfernt. ")
             else:
                 print(f"[LEAVE] {handle} nicht gefunden. ")
-## Loop damit es im Hintergrund läuft
+## Schleife damit es im Hintergrund läuft
 threading.Thread(target=discovery_loop, daemon=True).start() 
 
 import time
