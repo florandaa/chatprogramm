@@ -1,8 +1,7 @@
-## @file discovery-Dienst.py
+## @file discovery.py
 # @brief Discovery-Dienst für ein Peer-to-Peer-Netzwerk
-# @details 
-# Verwaltet Teilnehmerinformationen über UDP-Nachrichten, verarbeitet JOIN, WHO und LEAVE Befehle.
-# Verarbeitet Anfragen von Clients, die Informationen über andere Teilnehmer im Netzwerk benötigen.
+# @details Verwaltet Teilnehmerinformationen über UDP-Nachrichten, verarbeitet JOIN, WHO und LEAVE Befehle.
+# Verarbeitet JOIN, WHO und LEAVE Befehle für ein Peer-to-Peer-Netzwerk
 
 import toml
 import threading
