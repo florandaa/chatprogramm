@@ -7,7 +7,7 @@ import toml
 import threading
 
 ## Verwendung der Konfiguration aus der config.toml Datei
-config = toml.load('config.toml')
+config = toml.load('config/config.toml')
 handle = config['handle']
 tcp_port = config['port'][0]
 udp_port = config['port'][1]
