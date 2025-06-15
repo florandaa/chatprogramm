@@ -1,3 +1,8 @@
+import os
+print("Arbeitsverzeichnis:", os.getcwd())
+pfad = os.path.join(os.path.dirname(__file__), 'config', 'config.toml')
+pfad = os.path.abspath(pfad)
+
 ## @file discovery.py
 # @brief Discovery-Dienst für ein Peer-to-Peer-Netzwerk
 # @details Verwaltet Teilnehmerinformationen über UDP-Nachrichten, verarbeitet JOIN, WHO und LEAVE Befehle.
@@ -7,7 +12,7 @@ import toml
 import threading
 
 ## Verwendung der Konfiguration aus der config.toml Datei
-config = toml.load('config/config.toml')
+config = toml.load(pfad)  ## Lädt die Konfiguration aus der config.toml Datei
 handle = config['handle']
 tcp_port = config['port'][0]
 udp_port = config['port'][1]

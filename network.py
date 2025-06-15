@@ -1,9 +1,14 @@
 import socket # Für Netzwerk-Kommunikation (UDP und TCP)
 import threading  # Um Server/Listener im Hintergrund laufen zu lassen
 import toml # Zum Einlesen der Konfigurationsdatei (.toml)
+import os
 
-def load_config(path="config/config.toml"): # config.toml laden um in main.py ports und benutzernamen zu laden
-    with open(path, "r") as f:
+print("Arbeitsverzeichnis:", os.getcwd())
+pfad = os.path.join(os.path.dirname(__file__), 'config', 'config.toml')
+pfad = os.path.abspath(pfad)
+
+def load_config(pfad): # config.toml laden um in main.py ports und benutzernamen zu laden
+    with open(pfad, "r") as f:
         return toml.load(f)
 
 def udp_listener(port): # wartet auf Nachrichten auf einem bestimmten Port 
