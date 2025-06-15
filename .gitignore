@@ -1,5 +1,6 @@
 # === Konfigurations- und Systemdateien ===
 config.toml
+config2.toml
 .DS_Store
 
 # === Virtuelle Umgebungen ===
