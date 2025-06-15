@@ -12,7 +12,8 @@ print("Arbeitsverzeichnis:", os.getcwd())
 #Pfad zur config.toml berechnen
 pfad = os.path.abspath("config.toml") 
 
-def load_config(pfad): # config.toml laden um in main.py ports und benutzernamen zu laden
+def load_config():  # config.toml laden um in main.py ports und benutzernamen zu laden
+    pfad = os.path.abspath("config.toml")
     with open(pfad, "r") as f:
         return toml.load(f)
 
