@@ -2,14 +2,17 @@ import threading
 import time
 import atexit 
 import socket
+import sys
 from network import load_config, udp_listener, tcp_server, udp_send
 from cli import start_cli 
+
 
 # @file main.py
 # @brief Einstiegspunkt des Chatprogramms. Startet Netzwerkdienste und meldet den Client im lokalen Netzwerk an.
 
 # === Konfiguration laden ===
-config = load_config()
+config_path = sys.argv[1] if len(sys.argv) > 1 else "config.toml"
+config = load_config(config_path)
 broadcast_ip = config.get("broadcast_ip", "255.255.255.255")
 tcp_port = config["port"][0]
 udp_port = config["port"][1]
