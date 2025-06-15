@@ -15,7 +15,7 @@ udp_port = cfg["port"][1]
 handle = cfg["handle"]
 whoisport = cfg["whoisport"]
 
-# === Lokale IP ermitteln (für spätere Verwendung möglich) ===
+# # === Lokale IP ermitteln (Debug/Info-Zwecke) ===
 def get_own_ip():
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -39,13 +39,13 @@ threading.Thread(target=udp_listener, args=(udp_port,), daemon=True).start()   #
 threading.Thread(target=tcp_server, args=(tcp_port,), daemon=True).start()     # TCP-Empfang (MSG, IMG)
 
 # === Beitritt zum Netzwerk (JOIN) und Anfrage nach Teilnehmern (WHO) ===
-time.sleep(1)
+time.sleep(1) # Warten, damit Listener bereit sind
 udp_send(f"JOIN {handle} {tcp_port}", "255.255.255.255", whoisport)
 
 time.sleep(1)
 udp_send("WHO", "255.255.255.255", whoisport)
 
-# === Kommandozeile starten oder dauerhaft aktiv bleiben ===
+# === CLI starten (z. B. mit /msg, /verlauf, /nutzer etc.) ===
 try:
     start_cli()
 except Exception as e:
