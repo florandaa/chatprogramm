@@ -1,32 +1,55 @@
-import threading
-from network import load_config, udp_listener, tcp_server, udp_send, tcp_send
+import threading 
 import time
+import atexit 
 import socket
+from network import load_config, udp_listener, tcp_server, udp_send
+from cli import start_cli 
 
+# @file main.py
+# @brief Einstiegspunkt des Chatprogramms. Startet Netzwerkdienste und meldet den Client im lokalen Netzwerk an.
 
-
+# === Konfiguration laden ===
 cfg = load_config()
-
 tcp_port = cfg["port"][0]
 udp_port = cfg["port"][1]
 handle = cfg["handle"]
 whoisport = cfg["whoisport"]
 
-# Starte den WHOIS-Listener im Hintergrund
-threading.Thread(target=udp_listener, args=(whoisport,), daemon=True).start()
+# === Lokale IP ermitteln (für spätere Verwendung möglich) ===
+def get_own_ip():
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            return s.getsockname()[0]
+    except:
+        return "127.0.0.1"
 
-# Starte UDP- und TCP-Server im Hintergrund
-threading.Thread(target=udp_listener, args=(udp_port,), daemon=True).start()
-threading.Thread(target=tcp_server, args=(tcp_port,), daemon=True).start()
+local_ip = get_own_ip()
+print(f"[INFO] {handle} ist erreichbar unter {local_ip}:{tcp_port}")
 
-# NEU: JOIN an Discovery senden
-udp_send(f"JOIN {handle} {tcp_port}", "127.0.0.1", whoisport)
+# === LEAVE-Nachricht beim Beenden senden ===
+def clean_exit():
+    udp_send(f"LEAVE {handle}", "255.255.255.255", whoisport)
 
-# Sende WHO und eine Nachricht an den Discovery-Dienst
+atexit.register(clean_exit)
+
+# === Listener und Server starten ===
+threading.Thread(target=udp_listener, args=(whoisport,), daemon=True).start()  # Discovery (JOIN/WHO/LEAVE)
+threading.Thread(target=udp_listener, args=(udp_port,), daemon=True).start()   # Nachrichten-Empfang via UDP
+threading.Thread(target=tcp_server, args=(tcp_port,), daemon=True).start()     # TCP-Empfang (MSG, IMG)
+
+# === Beitritt zum Netzwerk (JOIN) und Anfrage nach Teilnehmern (WHO) ===
 time.sleep(1)
-udp_send("WHO", "127.0.0.1", whoisport)
+udp_send(f"JOIN {handle} {tcp_port}", "255.255.255.255", whoisport)
 
-# Sende eine Nachricht über UDP und TCP
 time.sleep(1)
-udp_send(f"{handle} sagt hallo über UDP", "127.0.0.1", udp_port)
-tcp_send("Hallo über TCP", "127.0.0.1", tcp_port)
+udp_send("WHO", "255.255.255.255", whoisport)
+
+# === Kommandozeile starten oder dauerhaft aktiv bleiben ===
+try:
+    start_cli()
+except Exception as e:
+    print(f"[WARNUNG] CLI nicht gefunden oder Fehler: {e}")
+    print("[INFO] Programm bleibt im Leerlauf aktiv.")
+    while True:
+        time.sleep(1)
