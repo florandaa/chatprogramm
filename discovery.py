@@ -7,7 +7,7 @@ import threading
 import toml
 import os
 import time
-ä
+
 ## Verwendung der Konfiguration aus der config.toml Datei
 pfad = os.path.abspath("config.toml")
 config = toml.load(pfad) ## Lädt die Konfiguration aus der config.toml Datei
