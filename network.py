@@ -31,12 +31,22 @@ def udp_listener(port):
 
 ##Sendet eine UDP-Nachricht an eine bestimmte IP-Adresse und Port (JOIN, WHO, etc.)
 def udp_send(message, ip, port): 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP-Socket
-    sock.sendto(message.encode(), (ip, port)) # Nachricht an Ziel-IP/Port senden
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP-Socket
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Broadcast erlauben (für 255.255.255.255)
-    sock.sendto(message.encode(), (ip, port))  # Nachricht an Ziel-IP/Port senden
-    sock.close()
+    print(f"[DEBUG] Sende UDP an {ip}:{port} mit: {message}")
+    
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    # Wenn Broadcast-Adresse → Broadcast aktivieren
+    if ip.endswith(".255"):
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+    try:
+        sock.sendto(message.encode(), (ip, port))
+    except PermissionError as e:
+        print(f"[FEHLER] Keine Berechtigung beim UDP-Senden an {ip}:{port}: {e}")
+    except Exception as e:
+        print(f"[FEHLER] UDP-Senden fehlgeschlagen: {e}")
+    finally:
+        sock.close()
 
 ## TCP-Server: wartet auf eingehende TCP-Verbindungen (z. B. MSG, IMG)
 def tcp_server(port, callback=None):

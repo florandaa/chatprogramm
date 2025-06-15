@@ -9,11 +9,12 @@ from cli import start_cli
 # @brief Einstiegspunkt des Chatprogramms. Startet Netzwerkdienste und meldet den Client im lokalen Netzwerk an.
 
 # === Konfiguration laden ===
-cfg = load_config()
-tcp_port = cfg["port"][0]
-udp_port = cfg["port"][1]
-handle = cfg["handle"]
-whoisport = cfg["whoisport"]
+config = load_config()
+broadcast_ip = config.get("broadcast_ip", "255.255.255.255")
+tcp_port = config["port"][0]
+udp_port = config["port"][1]
+handle = config["handle"]
+whoisport = config["whoisport"]
 
 # # === Lokale IP ermitteln (Debug/Info-Zwecke) ===
 def get_own_ip():
@@ -29,7 +30,7 @@ print(f"[INFO] {handle} ist erreichbar unter {local_ip}:{tcp_port}")
 
 # === LEAVE-Nachricht beim Beenden senden ===
 def clean_exit():
-    udp_send(f"LEAVE {handle}", "255.255.255.255", whoisport)
+    udp_send(f"LEAVE {handle}", broadcast_ip, whoisport)
 
 atexit.register(clean_exit)
 
@@ -40,10 +41,10 @@ threading.Thread(target=tcp_server, args=(tcp_port,), daemon=True).start()     #
 
 # === Beitritt zum Netzwerk (JOIN) und Anfrage nach Teilnehmern (WHO) ===
 time.sleep(1) # Warten, damit Listener bereit sind
-udp_send(f"JOIN {handle} {tcp_port}", "255.255.255.255", whoisport)
+udp_send(f"JOIN {handle} {tcp_port}", broadcast_ip, whoisport)
 
 time.sleep(1)
-udp_send("WHO", "255.255.255.255", whoisport)
+udp_send("WHO", broadcast_ip, whoisport)
 
 # === CLI starten (z. B. mit /msg, /verlauf, /nutzer etc.) ===
 try:
