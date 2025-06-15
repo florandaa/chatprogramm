@@ -18,7 +18,7 @@ def load_config():  # config.toml laden um in main.py ports und benutzernamen zu
         return toml.load(f)
 
  ##Wartet auf Nachrichten auf einem bestimmten Port 
-def udp_listener(port):
+def udp_listener(port, callback=None):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP-Socket erstellen
     sock.bind(("0.0.0.0", port)) # An allen IPs dieses Rechners auf Port lauschen
     print(f"[UDP] Wartet auf Port {port}...")
