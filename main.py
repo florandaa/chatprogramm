@@ -5,7 +5,7 @@ import signal
 import socket
 import sys
 from network import load_config, udp_listener, tcp_server, udp_send
-from cli import start_cli 
+from cli import start_cli, chat_verlauf 
 
 
 # @file main.py
@@ -32,7 +32,12 @@ def handle_udp_message(message, addr):
         sender_ip = addr[0]
         known_users[user_handle] = (sender_ip, user_port)
         print(f"[INFO] Neuer Nutzer bekannt: {user_handle} @ {sender_ip}:{user_port}")
+       
 
+def handle_tcp_message(message):
+    print(f"[MSG] {message}")  # Oder: chat_verlauf.append(message)
+    chat_verlauf.append(message)
+    print(f"[MSG] {message}")
 
 print(f"[DEBUG] Geladene Konfigurationsdatei: {config_path}")
 
@@ -58,7 +63,7 @@ atexit.register(clean_exit)
 if config_path != "config2.toml":
     threading.Thread(target=udp_listener, args=(whoisport, handle_udp_message), daemon=True).start() # Discovery (JOIN/WHO/LEAVE)
 threading.Thread(target=udp_listener, args=(udp_port, handle_udp_message), daemon=True).start()   # Nachrichten-Empfang via UDP
-threading.Thread(target=tcp_server, args=(tcp_port,), daemon=True).start()     # TCP-Empfang (MSG, IMG)
+threading.Thread(target=tcp_server, args=(tcp_port,handle_tcp_message), daemon=True).start()     # TCP-Empfang (MSG, IMG)
 
 
 # === Beitritt zum Netzwerk (JOIN) und Anfrage nach Teilnehmern (WHO) ===
