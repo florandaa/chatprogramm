@@ -149,6 +149,7 @@ class ChatGUI:
         nachricht = self.entry.get().strip()
         if not nachricht:
             return
+        self.entry.delete(0, tk.END) # Leere das Eingabefeld sofort nach dem Senden
         ziel = self.ziel.get()
         if ziel in bekannte_nutzer:
             ip, port = bekannte_nutzer[ziel]
@@ -157,6 +158,7 @@ class ChatGUI:
                 self.schreibe_chat(f"(an {ziel}) {self.handle}: {nachricht}")
             except Exception as e:
                 self.schreibe_chat(f"[FEHLER] Nachricht nicht gesendet: {e}")
+            threading.Thread(target=senden, daemon=True).start()
             self.entry.delete(0, tk.END)
         else:
             self.schreibe_chat(f"[FEHLER] Unbekannter Nutzer: {ziel}")
