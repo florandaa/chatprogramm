@@ -51,7 +51,10 @@ class ChatGUI:
         self.ziel_label = tk.Label(self.frame, text="Ziel:")
         self.ziel_label.grid(row=2, column=0, sticky='w')
 
-        self.ziel_menu = tk.OptionMenu(self.frame, self.ziel, *bekannte_nutzer.keys())
+        initial_choices = list(bekannte_nutzer.keys()) or["(niemand)"]
+        self.ziel.set(initial_choices[0])  # Setze Standardwert
+
+        self.ziel_menu = tk.OptionMenu(self.frame, self.ziel, *initial_choices
         self.ziel_menu.grid(row=2, column=1, sticky='w')
 
         self.name_button = tk.Button(self.frame, text="Name ändern", command=self.name_aendern)
