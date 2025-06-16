@@ -14,7 +14,7 @@ pfad = os.path.abspath("config.toml")
 
 def load_config(path = "config.toml"):  # config.toml laden um in main.py ports und benutzernamen zu laden
     import toml
-    with open(pfad, "r") as f:
+    with open(os.path.abspath(path), "r") as f:
         return toml.load(f)
 
  ##Wartet auf Nachrichten auf einem bestimmten Port 

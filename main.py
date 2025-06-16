@@ -19,6 +19,8 @@ udp_port = config["port"][1]
 handle = config["handle"]
 whoisport = config["whoisport"]
 
+print(f"[DEBUG] Geladene Konfigurationsdatei: {config_path}")
+
 # # === Lokale IP ermitteln (Debug/Info-Zwecke) ===
 def get_own_ip():
     try:
