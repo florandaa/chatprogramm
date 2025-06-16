@@ -1,6 +1,7 @@
 import threading 
 import time
 import atexit 
+import signal
 import socket
 import sys
 from network import load_config, udp_listener, tcp_server, udp_send
@@ -59,3 +60,11 @@ except Exception as e:
     print("[INFO] Programm bleibt im Leerlauf aktiv.")
     while True:
         time.sleep(1)
+
+# Damit STRG+C ordentlich LEAVE sendet und Threads beendet
+def handle_sigint(signum, frame):
+    clean_exit()
+    print("[INFO] Programm wurde beendet.")
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, handle_sigint)
