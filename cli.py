@@ -7,7 +7,6 @@ benutzername = "Benutzer"  # Standardname beim Start
 # Liste aller bekannten Nutzer – gefüllt nach WHO/KNOWUSERS
 bekannte_nutzer = {}  # Format: {handle: (ip, port)}
 
-
 # === Hilfetext anzeigen ===
 def zeige_hilfe():
     print("Befehle:")
@@ -41,7 +40,8 @@ def get_own_ip():
 
 # === Hauptfunktion zur Ausführung der CLI ===
 def start_cli(known_users_ref):
-    global benutzername
+    global bekannte_nutzer
+    bekannte_nutzer = known_users_ref
     print("Willkommen zum Chat!")
     print("Verfügbare Befehle: /hilfe, /name, /verlauf, /nutzer, /msg, /ip, exit\n")
 
