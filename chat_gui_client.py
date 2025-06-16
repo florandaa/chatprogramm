@@ -4,33 +4,35 @@ import threading
 import time
 import socket
 import os
-from network import tcp_send
+from network import load_config, tcp_send,udp_send,udp_listener
 from cli import get_own_ip
 
-# Beispielhafte bekannte Nutzer – für lokale Tests mit sich selbst
-bekannte_nutzer = {
-    "Sara": ("10.54.143.52", 5001),
-    "Floranda": ("10.55.140.182", 5002)
-}
-
+bekannte_nutzer = {}  # Globale Variable für bekannte Nutzer
 chat_verlauf = []  # Chatverlauf zur Anzeige und Speicherung
+# @file chat_gui_client.py
 
 class ChatGUI:
     def __init__(self, master):
+        config = load_config()
+        self.whoisport = config.get('whoisport', 4000)  # Port für Discovery
+       
         self.master = master
         self.master.title("Chat GUI")
-
         self.frame = tk.Frame(master)
         self.frame.pack(padx=10, pady=10)
 
         self.handle = simpledialog.askstring("Name", "Dein Benutzername:")
+
         # Setze dynamisch den Empfangsport je nach Benutzername
         if self.handle == "Sara":
+
             self.empfangs_port = 5001
         elif self.handle == "Floranda":
+
             self.empfangs_port = 5002
         else:
             self.empfangs_port = 5560  # Backup-Port für neue Namen
+
         self.ziel = tk.StringVar(value="Sara")
 
         self.chatbox = scrolledtext.ScrolledText(self.frame, wrap=tk.WORD, state='disabled', width=60, height=20)
@@ -67,8 +69,51 @@ class ChatGUI:
         self.empfang_thread = threading.Thread(target=self.empfange_tcp, daemon=True)
         self.empfang_thread.start()
         
-        self.empfangs_port = 5555 if self.handle == "Sara" else 5556
+        self.discovery_thread = threading.Thread(
+            target=udp_listener,
+            args=(self.whoisport, self.verarbeitete_udp_nachricht),
+            daemon=True
+        )
+        self.discovery_thread.start()
 
+        # Join + WHO-Nachrichten senden
+        time.sleep(1)  # Warten, damit Listener bereit sind
+        udp_send(f"JOIN {self.handle} {self.empfangs_port}", "255.255.255.255", self.whoisport)
+        time.sleep(1)
+        udp_send("WHO", "255.255.255.255", self.whoisport)
+
+    def verarbeitete_udp_nachricht(self, message, addr):
+        teile = message.strip().split()   
+        if not teile:
+            return
+        cmd = teile[0]
+        
+        if cmd == "JOIN" and len(teile) == 3:
+            handle = teile[1]
+            port = int(teile[2])
+            ip = addr[0]
+            if handle != self.handle:
+                bekannte_nutzer[handle] = (ip, port)
+                self.schreibe_chat(f"[JOIN] Neuer Nutzer: {handle} @ {ip}:{port}")
+                self.update_ziel_menu()
+
+        elif cmd == "KNOWUSERS":
+            eintraege = " ".join(teile[1:]).split(", ")
+            for eintrag in eintraege:
+                try:
+                    handle, ip, port = eintrag.split()
+                    bekannte_nutzer[handle] = (ip, int(port))
+                except:
+                    continue
+            self.update_ziel_menu() 
+
+        elif cmd == "LEAVE" and len(teile) == 2:
+            handle = teile[1]
+            if handle in bekannte_nutzer:
+                del bekannte_nutzer[handle]
+                self.schreibe_chat(f"[LEAVE] Nutzer {handle} hat den Chat verlassen.")
+               
+    
     def schreibe_chat(self, text):
         self.chatbox.configure(state='normal')
         self.chatbox.insert(tk.END, text + "\n")
@@ -106,6 +151,7 @@ class ChatGUI:
                 self.schreibe_chat(f"(an {ziel}) [Bild gesendet: {os.path.basename(pfad)}]")
             except Exception as e:
                 self.schreibe_chat(f"[FEHLER] Bild nicht gesendet: {e}")
+
         else:
             self.schreibe_chat(f"[FEHLER] Unbekannter Nutzer: {ziel}")
 
@@ -121,9 +167,16 @@ class ChatGUI:
             self.handle = neuer_name
             self.schreibe_chat(f"[INFO] Benutzername geändert zu {self.handle}")
 
+    def update_ziel_menu(self):
+        menu = self.ziel_menu['menu']
+        menu.delete(0, 'end')
+        for name in bekannte_nutzer.keys():
+            menu.add_command(label=name, command=lambda value=name: self.ziel.set(value))
+    
     def beenden(self):
         self.speichere_verlauf()
         self.master.destroy()
+        udp_send(f"LEAVE {self.handle}", "255.255.255.255", self.whoisport)
 
 
     def empfange_tcp(self):
