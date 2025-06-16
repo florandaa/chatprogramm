@@ -56,14 +56,12 @@ def tcp_server(port, callback=None):
     print(f"[TCP] Server läuft auf Port {port}")
     while True:
         conn, addr = sock.accept()  # Wartet auf eingehende Verbindung
-        data = conn.recv(1024)  # Liest Nachricht
-        if data:
-            message = data.decode().strip()
-            print(f"[TCP] Von {addr}: {message}")
-            if callback:
-                callback(message)
-            conn.sendall(b"Empfangen")  # Antwort senden
-        conn.close()  # Verbindung beenden
+        data = conn.recv(1024).decode("utf-8")  # Liest Nachricht
+        if callback:
+            callback(data)
+        else:
+            print(f"[TCP] Nachricht empfangen: {data}")
+        conn.close()
 
 ## für Kommunikation zwischen zwei Teilnehmern (z. B. MSG)
 def tcp_send(message, ip, port):

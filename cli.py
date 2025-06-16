@@ -5,7 +5,7 @@ chat_verlauf = []  # Gespeicherte Nachrichten lokal (für Verlauf & Export)
 benutzername = "Benutzer"  # Standardname beim Start
 
 # Liste aller bekannten Nutzer – gefüllt nach WHO/KNOWUSERS
-bekannte_nutzer = {}  # Format: {handle: (ip, port)}
+bekannte_nutzer = None  # Wird aus main.py gesetzt
 
 # === Hilfetext anzeigen ===
 def zeige_hilfe():
