@@ -55,7 +55,8 @@ def clean_exit():
 atexit.register(clean_exit)
 
 # === Listener und Server starten ===
-threading.Thread(target=udp_listener, args=(whoisport, handle_udp_message), daemon=True).start() # Discovery (JOIN/WHO/LEAVE)
+if config_path != "config2.toml":
+    threading.Thread(target=udp_listener, args=(whoisport, handle_udp_message), daemon=True).start() # Discovery (JOIN/WHO/LEAVE)
 threading.Thread(target=udp_listener, args=(udp_port, handle_udp_message), daemon=True).start()   # Nachrichten-Empfang via UDP
 threading.Thread(target=tcp_server, args=(tcp_port,), daemon=True).start()     # TCP-Empfang (MSG, IMG)
 
