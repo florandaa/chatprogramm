@@ -135,6 +135,7 @@ class ChatGUI:
             if handle in bekannte_nutzer:
                 del bekannte_nutzer[handle]
                 self.schreibe_chat(f"[LEAVE] Nutzer {handle} hat den Chat verlassen.")
+                self.update_ziel_menu()
                
     
     def schreibe_chat(self, text):
