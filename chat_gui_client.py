@@ -27,7 +27,7 @@ class ChatGUI:
         self.nutzer_frame.grid(row=0, column=4, rowspan=4, padx=(10, 0), pady=10, sticky='ns')
 
         self.nutzer_label = tk.Label(self.nutzer_frame, text="Online Nutzer:")
-        self.nutzer_label.pack("nw")
+        self.nutzer_label.pack(anchor="nw")
 
         self.nutzer_listbox = tk.Listbox(self.nutzer_frame, width=20, height=20)
         self.nutzer_listbox.pack(fill=tk.BOTH, expand=True)
@@ -198,7 +198,7 @@ class ChatGUI:
         self.nutzer_listbox.delete(0, 'end')
         for name in bekannte_nutzer.keys():
             self.nutzer_listbox.insert(tk.END, name)
-            
+
     def beenden(self):
         self.speichere_verlauf()
         self.master.destroy()
