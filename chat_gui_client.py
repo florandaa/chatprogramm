@@ -24,6 +24,13 @@ class ChatGUI:
         self.frame.pack(padx=10, pady=10)
 
         self.handle = simpledialog.askstring("Name", "Dein Benutzername:")
+        # Setze dynamisch den Empfangsport je nach Benutzername
+        if self.handle == "Sara":
+            self.empfangs_port = 5555
+        elif self.handle == "TestHost":
+            self.empfangs_port = 5556
+        else:
+            self.empfangs_port = 5560  # Backup-Port für neue Namen
         self.ziel = tk.StringVar(value="Sara")
 
         self.chatbox = scrolledtext.ScrolledText(self.frame, wrap=tk.WORD, state='disabled', width=60, height=20)
