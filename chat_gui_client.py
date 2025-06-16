@@ -16,7 +16,9 @@ class ChatGUI:
     def __init__(self, master):
         config = load_config()
         self.whoisport = config.get('whoisport', 4000)  # Port für Discovery
-       
+        self.autoreply_text = config.get("autoreply", "Ich bin gerade abwesend")
+        self.abwesend = False
+
         self.master = master
         self.master.title("Chat GUI")
         self.frame = tk.Frame(master, bg="#f2f2f2", padx=15, pady=15)
@@ -221,6 +223,18 @@ class ChatGUI:
                     try:
                         text = daten.decode()
                         self.schreibe_chat(f"[Empfangen von {addr[0]}] {text}")
+
+                        if self.abwesend and text.startswith("MSG"):
+                            try:
+                                teile = text.split()
+                                absender = teile [1]
+                                if absender != self.handle:
+                                    ip = addr [0]
+                                    antwort = f"MSG {self.handle} {self.autoreply_text}"
+                                    tcp_send(antwort, ip, self.empfangs_port)
+                                    self.schreibe_chat(f"(Auto-Reply an {absender}) {self.autoreply_text}")
+                            except Exception as e:
+                                print("[Auto-Reply Fehler]", e)     
                     except UnicodeDecodeError:
                         dateiname = f"empfangenes_bild_{int(time.time())}.jpg"
                         with open(dateiname, "wb") as f:
