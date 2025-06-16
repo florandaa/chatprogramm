@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import scrolledtext, simpledialog, filedialog, messagebox
+from tkinter import scrolledtext, simpledialog, filedialog
 import threading
 import time
 import socket
@@ -7,56 +7,55 @@ import os
 from network import tcp_send
 from cli import get_own_ip
 
-# Beispielhafte bekannte Nutzer – diese sollten im echten Projekt dynamisch verwaltet werden
+# Beispielhafte bekannte Nutzer – für lokale Tests mit sich selbst
 bekannte_nutzer = {
-    "Sara": ("192.168.2.164", 5001),
-    "TestHost": ("192.168.2.164", 5002)
+    "Sara": ("127.0.0.1", 5001),
+    "TestHost": ("127.0.0.1", 5002)
 }
 
-chat_verlauf = []  # Zum Speichern des gesamten Chatverlaufs
+chat_verlauf = []  # Chatverlauf zur Anzeige und Speicherung
 
 class ChatGUI:
     def __init__(self, master):
         self.master = master
         self.master.title("Chat GUI")
 
-        self.frame = tk.Frame(master, bg="#f2f2f2")
+        self.frame = tk.Frame(master)
         self.frame.pack(padx=10, pady=10)
 
         self.handle = simpledialog.askstring("Name", "Dein Benutzername:")
         self.ziel = tk.StringVar(value="Sara")
 
-        self.chatbox = scrolledtext.ScrolledText(self.frame, wrap=tk.WORD, state='disabled', width=60, height=20, bg="white")
+        self.chatbox = scrolledtext.ScrolledText(self.frame, wrap=tk.WORD, state='disabled', width=60, height=20)
         self.chatbox.grid(row=0, column=0, columnspan=4, pady=(0, 10))
 
         self.entry = tk.Entry(self.frame, width=40)
-        self.entry.grid(row=1, column=0, pady=(0, 10), padx=(0, 5))
+        self.entry.grid(row=1, column=0, columnspan=2, pady=(0, 10), sticky='we')
         self.entry.bind("<Return>", self.sende_nachricht)
 
-        self.send_button = tk.Button(self.frame, text="Senden", bg="#cce5ff", command=self.sende_nachricht)
-        self.send_button.grid(row=1, column=1, pady=(0, 10))
+        self.send_button = tk.Button(self.frame, text="Senden", command=self.sende_nachricht)
+        self.send_button.grid(row=1, column=2, pady=(0, 10), sticky='we')
 
-        self.image_button = tk.Button(self.frame, text="Bild senden", bg="#d4edda", command=self.bild_senden)
-        self.image_button.grid(row=1, column=2, pady=(0, 10), padx=(5, 0))
+        self.image_button = tk.Button(self.frame, text="Bild senden", command=self.bild_senden)
+        self.image_button.grid(row=1, column=3, pady=(0, 10), sticky='we')
 
-        self.exit_button = tk.Button(self.frame, text="Beenden", bg="#f8d7da", command=self.master.quit)
-        self.exit_button.grid(row=1, column=3, pady=(0, 10), padx=(5, 0))
-
-        self.ziel_label = tk.Label(self.frame, text="Ziel:", bg="#f2f2f2")
-        self.ziel_label.grid(row=2, column=0, sticky='e')
+        self.ziel_label = tk.Label(self.frame, text="Ziel:")
+        self.ziel_label.grid(row=2, column=0, sticky='w')
 
         self.ziel_menu = tk.OptionMenu(self.frame, self.ziel, *bekannte_nutzer.keys())
-        self.ziel_menu.config(width=10)
         self.ziel_menu.grid(row=2, column=1, sticky='w')
 
         self.name_button = tk.Button(self.frame, text="Name ändern", command=self.name_aendern)
-        self.name_button.grid(row=2, column=2, columnspan=2, sticky='w')
+        self.name_button.grid(row=2, column=2, pady=(0, 10), sticky='we')
+
+        self.exit_button = tk.Button(self.frame, text="Beenden", command=self.beenden)
+        self.exit_button.grid(row=2, column=3, pady=(0, 10), sticky='we')
 
         self.verlauf_button = tk.Button(self.frame, text="Verlauf speichern", command=self.speichere_verlauf)
         self.verlauf_button.grid(row=3, column=0, columnspan=2, pady=(10, 0))
 
-        self.ip_label = tk.Label(self.frame, text=f"Deine IP: {get_own_ip()}", bg="#f2f2f2")
-        self.ip_label.grid(row=3, column=2, columnspan=2, pady=(10, 0))
+        self.ip_label = tk.Label(self.frame, text=f"Deine IP: {get_own_ip()}")
+        self.ip_label.grid(row=3, column=2, columnspan=2, pady=(10, 0), sticky='e')
 
         self.empfang_thread = threading.Thread(target=self.empfange_tcp, daemon=True)
         self.empfang_thread.start()
@@ -75,8 +74,11 @@ class ChatGUI:
         ziel = self.ziel.get()
         if ziel in bekannte_nutzer:
             ip, port = bekannte_nutzer[ziel]
-            tcp_send(f"MSG {self.handle} {nachricht}", ip, port)
-            self.schreibe_chat(f"(an {ziel}) {self.handle}: {nachricht}")
+            try:
+                tcp_send(f"MSG {self.handle} {nachricht}", ip, port)
+                self.schreibe_chat(f"(an {ziel}) {self.handle}: {nachricht}")
+            except Exception as e:
+                self.schreibe_chat(f"[FEHLER] Nachricht nicht gesendet: {e}")
             self.entry.delete(0, tk.END)
         else:
             self.schreibe_chat(f"[FEHLER] Unbekannter Nutzer: {ziel}")
@@ -88,10 +90,13 @@ class ChatGUI:
         ziel = self.ziel.get()
         if ziel in bekannte_nutzer:
             ip, port = bekannte_nutzer[ziel]
-            with open(pfad, "rb") as f:
-                bilddaten = f.read()
-            tcp_send(bilddaten, ip, port, binary=True)
-            self.schreibe_chat(f"(an {ziel}) [Bild gesendet: {os.path.basename(pfad)}]")
+            try:
+                with open(pfad, "rb") as f:
+                    bilddaten = f.read()
+                tcp_send(bilddaten, ip, port, binary=True)
+                self.schreibe_chat(f"(an {ziel}) [Bild gesendet: {os.path.basename(pfad)}]")
+            except Exception as e:
+                self.schreibe_chat(f"[FEHLER] Bild nicht gesendet: {e}")
         else:
             self.schreibe_chat(f"[FEHLER] Unbekannter Nutzer: {ziel}")
 
@@ -105,7 +110,11 @@ class ChatGUI:
         neuer_name = simpledialog.askstring("Name ändern", "Neuer Benutzername:")
         if neuer_name:
             self.handle = neuer_name
-            self.schreibe_chat(f"[INFO] Benutzername geändert zu {neuer_name}")
+            self.schreibe_chat(f"[INFO] Benutzername geändert zu {self.handle}")
+
+    def beenden(self):
+        self.speichere_verlauf()
+        self.master.destroy()
 
     def empfange_tcp(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
