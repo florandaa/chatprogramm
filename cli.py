@@ -1,11 +1,13 @@
 # @file cli.py
 # @brief Kommandozeilen-Schnittstelle für den Chat-Client
 
+from network import tcp_send
+
 chat_verlauf = []  # Gespeicherte Nachrichten lokal (für Verlauf & Export)
 benutzername = "Benutzer"  # Standardname beim Start
 
 # Liste aller bekannten Nutzer – gefüllt nach WHO/KNOWUSERS
-bekannte_nutzer = None  # Wird aus main.py gesetzt
+bekannte_nutzer = {}  # Wird aus main.py gesetzt
 
 # === Hilfetext anzeigen ===
 def zeige_hilfe():
@@ -87,7 +89,7 @@ def start_cli(known_users_ref):
                 for handle, (ip, port) in bekannte_nutzer.items():
                     print(f"- {handle} @ {ip}:{port}")
 
-        # === Nachricht an bestimmten Nutzer senden ===
+        # === Sendet Nachricht an Nutzer  ===
         elif eingabe.lower().startswith("/msg "):
             teile = eingabe.split(" ", 2)
             if len(teile) < 3:
@@ -96,13 +98,12 @@ def start_cli(known_users_ref):
                 ziel, nachricht = teile[1], teile[2]
                 if ziel in bekannte_nutzer:
                     ip, port = bekannte_nutzer[ziel]
-                    # HIER MUSS tcp_send() aus network.py aufgerufen werden
-                    # Beispiel: tcp_send(f"MSG {ziel} {nachricht}", ip, port)
+                    tcp_send(f"MSG {benutzername} {nachricht}", ip, port)
                     print(f"[SEND] Nachricht an {ziel} gesendet: {nachricht}")
                     chat_verlauf.append(f"(an {ziel}) {benutzername}: {nachricht}")
                 else:
                     print(f"Unbekannter Nutzer: {ziel}")
-
+           
         # === Eigene IP anzeigen lassen ===
         elif eingabe.lower() == "/ip":
             print(f"Deine IP-Adresse: {get_own_ip()}")
