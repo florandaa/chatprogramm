@@ -4,6 +4,7 @@ import threading
 import time
 import socket
 import os
+import tkinter.tkk as ttk
 from network import load_config, tcp_send,udp_send,udp_listener
 from cli import get_own_ip
 
@@ -18,18 +19,21 @@ class ChatGUI:
        
         self.master = master
         self.master.title("Chat GUI")
-        self.frame = tk.Frame(master)
-        self.frame.grid(row=0, column=0, padx=10, pady=10)
+        self.frame = tk.Frame(master, bg="#f2f2f2", padx=15, pady=15)
+        self.frame.grid(row=0, column=0,  sticky='nsew')
+        self.master.conigure(bg="#e6e6e6")
 
 
         # Neuer Frame links für die Nutzerliste
-        self.nutzer_frame = tk.Frame(self.frame)
-        self.nutzer_frame.grid(row=0, column=4, rowspan=4, padx=(10, 0), pady=10, sticky='ns')
+        self.nutzer_frame = tk.Frame(self.frame, bg="#ffffff", relief="solid")
+        self.nutzer_frame.grid(row=0, column=4, rowspan=4, padx=(15, 0), pady=10, sticky='ns')
 
-        self.nutzer_label = tk.Label(self.nutzer_frame, text="Online Nutzer:")
-        self.nutzer_label.pack(anchor="nw")
+        self.nutzer_label = tk.Label(self.nutzer_frame, text="Online Nutzer:", bg="#ffffff", font=("Segoe UI", 10, "bold"))
+        self.nutzer_label.pack(anchor="nw", padx=10, pady=5)
 
-        self.nutzer_listbox = tk.Listbox(self.nutzer_frame, width=20, height=20)
+        self.nutzer_listbox = tk.Listbox(self.nutzer_frame, width=20, height=20, bg="#f9f9f9", fg="#000", bd=0, highlightthickness=0)
+        self.nutzer_listbox.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0,10))
+
         self.nutzer_listbox.pack(fill=tk.BOTH, expand=True)
         
 
@@ -49,35 +53,36 @@ class ChatGUI:
 
         self.ziel = tk.StringVar(value="Sara")
 
-        self.chatbox = scrolledtext.ScrolledText(self.frame, wrap=tk.WORD, state='disabled', width=60, height=20)
+        self.chatbox = scrolledtext.ScrolledText(self.frame, wrap=tk.WORD, state='disabled', width=60, height=20, 
+                                                          bg="#ffffff", fg="#000000", font=("Segoe UI", 10), bd=1, relief="solid")
         self.chatbox.grid(row=0, column=0, columnspan=4, pady=(0, 10))
 
         self.entry = tk.Entry(self.frame, width=40)
         self.entry.grid(row=1, column=0, columnspan=2, pady=(0, 10), sticky='we')
         self.entry.bind("<Return>", self.sende_nachricht)
 
-        self.send_button = tk.Button(self.frame, text="Senden", command=self.sende_nachricht)
+        self.send_button = ttk.Button(self.frame, text="Senden", command=self.sende_nachricht)
         self.send_button.grid(row=1, column=2, pady=(0, 10), sticky='we')
 
-        self.image_button = tk.Button(self.frame, text="Bild senden", command=self.bild_senden)
+        self.image_button = ttk.Button(self.frame, text="Bild senden", command=self.bild_senden)
         self.image_button.grid(row=1, column=3, pady=(0, 10), sticky='we')
 
-        self.ziel_label = tk.Label(self.frame, text="Ziel:")
+        self.ziel_label = ttk.Label(self.frame, text="Ziel:")
         self.ziel_label.grid(row=2, column=0, sticky='w')
 
         initial_choices = list(bekannte_nutzer.keys()) or["(niemand)"]
         self.ziel.set(initial_choices[0])  # Setze Standardwert
 
-        self.ziel_menu = tk.OptionMenu(self.frame, self.ziel, *initial_choices)
+        self.ziel_menu = ttk.OptionMenu(self.frame, self.ziel, *initial_choices)
         self.ziel_menu.grid(row=2, column=1, sticky='w')
 
-        self.name_button = tk.Button(self.frame, text="Name ändern", command=self.name_aendern)
+        self.name_button = ttk.Button(self.frame, text="Name ändern", command=self.name_aendern)
         self.name_button.grid(row=2, column=2, pady=(0, 10), sticky='we')
 
-        self.exit_button = tk.Button(self.frame, text="Beenden", command=self.beenden)
+        self.exit_button = ttk.Button(self.frame, text="Beenden", command=self.beenden)
         self.exit_button.grid(row=2, column=3, pady=(0, 10), sticky='we')
 
-        self.verlauf_button = tk.Button(self.frame, text="Verlauf speichern", command=self.speichere_verlauf)
+        self.verlauf_button = ttk.Button(self.frame, text="Verlauf speichern", command=self.speichere_verlauf)
         self.verlauf_button.grid(row=3, column=0, columnspan=2, pady=(10, 0))
 
         self.ip_label = tk.Label(self.frame, text=f"Deine IP: {get_own_ip()}")
