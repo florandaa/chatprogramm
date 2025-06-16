@@ -9,8 +9,8 @@ from cli import get_own_ip
 
 # Beispielhafte bekannte Nutzer – für lokale Tests mit sich selbst
 bekannte_nutzer = {
-    "Sara": ("192.168.2.111", 5001),
-    "Floranda": ("192.168.2.222", 5002)
+    "Sara": ("10.54.143.52", 5001),
+    "Floranda": ("10.55.140.182", 5002)
 }
 
 chat_verlauf = []  # Chatverlauf zur Anzeige und Speicherung
