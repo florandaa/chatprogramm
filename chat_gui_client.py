@@ -21,7 +21,7 @@ class ChatGUI:
         self.master.title("Chat GUI")
         self.frame = tk.Frame(master, bg="#f2f2f2", padx=15, pady=15)
         self.frame.grid(row=0, column=0,  sticky='nsew')
-        self.master.conigure(bg="#e6e6e6")
+        self.master.configure(bg="#e6e6e6")
 
 
         # Neuer Frame links für die Nutzerliste
