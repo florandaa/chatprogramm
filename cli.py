@@ -40,7 +40,7 @@ def get_own_ip():
 
 
 # === Hauptfunktion zur Ausführung der CLI ===
-def start_cli():
+def start_cli(known_users_ref):
     global benutzername
     print("Willkommen zum Chat!")
     print("Verfügbare Befehle: /hilfe, /name, /verlauf, /nutzer, /msg, /ip, exit\n")

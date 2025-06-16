@@ -70,7 +70,7 @@ udp_send("WHO", broadcast_ip, whoisport)
 
 # === CLI starten (z. B. mit /msg, /verlauf, /nutzer etc.) ===
 try:
-    start_cli()
+    start_cli(known_users)
 except Exception as e:
     print(f"[WARNUNG] CLI nicht gefunden oder Fehler: {e}")
     print("[INFO] Programm bleibt im Leerlauf aktiv.")
