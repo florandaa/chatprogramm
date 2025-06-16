@@ -101,10 +101,6 @@ class ChatGUI:
             bekannte_nutzer[handle] = (ip, port)
             self.schreibe_chat(f"[JOIN] Neuer Nutzer: {handle} @ {ip}:{port}")
             self.update_ziel_menu()
-            
-            if self.ziel.get() == "(niemand)" and bekannte_nutzer:
-                first = list(bekannte_nutzer.keys())[0]
-                self.ziel.set(first)  # Setze den ersten bekannten Nutzer als Ziel
 
         elif cmd == "KNOWUSERS":
             eintraege = " ".join(teile[1:]).split(", ")
