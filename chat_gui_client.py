@@ -1,11 +1,11 @@
 import tkinter as tk
-from tkinter import scrolledtext, simpledialog, filedialog
+from tkinter import scrolledtext, simpledialog, filedialog, messagebox
 import threading
 import time
 import socket
+import os
 from network import tcp_send
 from cli import get_own_ip
-import os
 
 # Beispielhafte bekannte Nutzer – diese sollten im echten Projekt dynamisch verwaltet werden
 bekannte_nutzer = {
@@ -19,57 +19,49 @@ class ChatGUI:
     def __init__(self, master):
         self.master = master
         self.master.title("Chat GUI")
-        self.master.configure(bg="#f0f0f0")
 
-        self.frame = tk.Frame(master, bg="#f0f0f0")
+        self.frame = tk.Frame(master, bg="#f2f2f2")
         self.frame.pack(padx=10, pady=10)
 
-        # Benutzername abfragen
         self.handle = simpledialog.askstring("Name", "Dein Benutzername:")
-        self.ziel = tk.StringVar(value="Sara")  # Standardzielnutzer
+        self.ziel = tk.StringVar(value="Sara")
 
-        # Chatverlauf-Anzeige mit Scrollfunktion
         self.chatbox = scrolledtext.ScrolledText(self.frame, wrap=tk.WORD, state='disabled', width=60, height=20, bg="white")
-        self.chatbox.grid(row=0, column=0, columnspan=3, pady=(0, 10))
+        self.chatbox.grid(row=0, column=0, columnspan=4, pady=(0, 10))
 
-        # Texteingabefeld für Nachrichten
         self.entry = tk.Entry(self.frame, width=40)
         self.entry.grid(row=1, column=0, pady=(0, 10), padx=(0, 5))
         self.entry.bind("<Return>", self.sende_nachricht)
 
-        # Senden-Button
-        self.send_button = tk.Button(self.frame, text="Senden", bg="#4caf50", fg="white", command=self.sende_nachricht)
+        self.send_button = tk.Button(self.frame, text="Senden", bg="#cce5ff", command=self.sende_nachricht)
         self.send_button.grid(row=1, column=1, pady=(0, 10))
 
-        # Bild senden Button
-        self.image_button = tk.Button(self.frame, text="Bild senden", bg="#2196f3", fg="white", command=self.bild_senden)
+        self.image_button = tk.Button(self.frame, text="Bild senden", bg="#d4edda", command=self.bild_senden)
         self.image_button.grid(row=1, column=2, pady=(0, 10), padx=(5, 0))
 
-        # Zielauswahl nebeneinander
-        ziel_frame = tk.Frame(self.frame, bg="#f0f0f0")
-        ziel_frame.grid(row=2, column=0, columnspan=3, sticky='w', pady=(0, 10))
-        
-        self.ziel_label = tk.Label(ziel_frame, text="Ziel:", bg="#f0f0f0")
-        self.ziel_label.pack(side=tk.LEFT)
+        self.exit_button = tk.Button(self.frame, text="Beenden", bg="#f8d7da", command=self.master.quit)
+        self.exit_button.grid(row=1, column=3, pady=(0, 10), padx=(5, 0))
 
-        self.ziel_menu = tk.OptionMenu(ziel_frame, self.ziel, *bekannte_nutzer.keys())
-        self.ziel_menu.config(bg="white")
-        self.ziel_menu.pack(side=tk.LEFT, padx=(5, 0))
+        self.ziel_label = tk.Label(self.frame, text="Ziel:", bg="#f2f2f2")
+        self.ziel_label.grid(row=2, column=0, sticky='e')
 
-        # Verlauf speichern Button
+        self.ziel_menu = tk.OptionMenu(self.frame, self.ziel, *bekannte_nutzer.keys())
+        self.ziel_menu.config(width=10)
+        self.ziel_menu.grid(row=2, column=1, sticky='w')
+
+        self.name_button = tk.Button(self.frame, text="Name ändern", command=self.name_aendern)
+        self.name_button.grid(row=2, column=2, columnspan=2, sticky='w')
+
         self.verlauf_button = tk.Button(self.frame, text="Verlauf speichern", command=self.speichere_verlauf)
-        self.verlauf_button.grid(row=3, column=0, columnspan=3, pady=(0, 10))
+        self.verlauf_button.grid(row=3, column=0, columnspan=2, pady=(10, 0))
 
-        # Anzeige der eigenen IP-Adresse
-        self.ip_label = tk.Label(self.frame, text=f"Deine IP: {get_own_ip()}", bg="#f0f0f0")
-        self.ip_label.grid(row=4, column=0, columnspan=3, pady=(5, 0))
+        self.ip_label = tk.Label(self.frame, text=f"Deine IP: {get_own_ip()}", bg="#f2f2f2")
+        self.ip_label.grid(row=3, column=2, columnspan=2, pady=(10, 0))
 
-        # Empfangsthread für eingehende Nachrichten starten
         self.empfang_thread = threading.Thread(target=self.empfange_tcp, daemon=True)
         self.empfang_thread.start()
 
     def schreibe_chat(self, text):
-        """Fügt neue Zeile im Chatverlauf ein."""
         self.chatbox.configure(state='normal')
         self.chatbox.insert(tk.END, text + "\n")
         self.chatbox.configure(state='disabled')
@@ -77,7 +69,6 @@ class ChatGUI:
         chat_verlauf.append(text)
 
     def sende_nachricht(self, event=None):
-        """Sendet Textnachricht an ausgewählten Nutzer."""
         nachricht = self.entry.get().strip()
         if not nachricht:
             return
@@ -91,7 +82,6 @@ class ChatGUI:
             self.schreibe_chat(f"[FEHLER] Unbekannter Nutzer: {ziel}")
 
     def bild_senden(self):
-        """Öffnet Dateidialog zum Senden eines Bildes."""
         pfad = filedialog.askopenfilename(title="Bild auswählen", filetypes=[("Bilddateien", "*.png;*.jpg;*.jpeg;*.gif")])
         if not pfad:
             return
@@ -106,14 +96,18 @@ class ChatGUI:
             self.schreibe_chat(f"[FEHLER] Unbekannter Nutzer: {ziel}")
 
     def speichere_verlauf(self):
-        """Speichert den Chatverlauf als Textdatei."""
         with open("chat_gui_verlauf.txt", "w", encoding="utf-8") as f:
             for zeile in chat_verlauf:
                 f.write(zeile + "\n")
         self.schreibe_chat("[INFO] Verlauf gespeichert.")
 
+    def name_aendern(self):
+        neuer_name = simpledialog.askstring("Name ändern", "Neuer Benutzername:")
+        if neuer_name:
+            self.handle = neuer_name
+            self.schreibe_chat(f"[INFO] Benutzername geändert zu {neuer_name}")
+
     def empfange_tcp(self):
-        """Einfacher TCP-Server zum Empfangen von Nachrichten oder Bildern."""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
             server.bind(("0.0.0.0", 5555))
             server.listen()
