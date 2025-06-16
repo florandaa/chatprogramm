@@ -20,6 +20,20 @@ udp_port = config["port"][1]
 handle = config["handle"]
 whoisport = config["whoisport"]
 
+known_users = {}  # Neue globale Variable
+
+# === Verarbeitung eingehender UDP-Nachrichten ===
+# Erkennt JOIN-Nachrichten und speichert neue Nutzer in known_users
+def handle_udp_message(message, addr):
+    parts = message.strip().split()
+    if parts[0] == "JOIN" and len(parts) == 3:
+        user_handle = parts[1]
+        user_port = int(parts[2])
+        sender_ip = addr[0]
+        known_users[user_handle] = (sender_ip, user_port)
+        print(f"[INFO] Neuer Nutzer bekannt: {user_handle} @ {sender_ip}:{user_port}")
+
+
 print(f"[DEBUG] Geladene Konfigurationsdatei: {config_path}")
 
 # # === Lokale IP ermitteln (Debug/Info-Zwecke) ===
@@ -41,9 +55,10 @@ def clean_exit():
 atexit.register(clean_exit)
 
 # === Listener und Server starten ===
-threading.Thread(target=udp_listener, args=(whoisport,), daemon=True).start()  # Discovery (JOIN/WHO/LEAVE)
-threading.Thread(target=udp_listener, args=(udp_port,), daemon=True).start()   # Nachrichten-Empfang via UDP
+threading.Thread(target=udp_listener, args=(whoisport, handle_udp_message), daemon=True).start() # Discovery (JOIN/WHO/LEAVE)
+threading.Thread(target=udp_listener, args=(udp_port, handle_udp_message), daemon=True).start()   # Nachrichten-Empfang via UDP
 threading.Thread(target=tcp_server, args=(tcp_port,), daemon=True).start()     # TCP-Empfang (MSG, IMG)
+
 
 # === Beitritt zum Netzwerk (JOIN) und Anfrage nach Teilnehmern (WHO) ===
 time.sleep(1) # Warten, damit Listener bereit sind

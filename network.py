@@ -27,7 +27,7 @@ def udp_listener(port, callback=None):
         message = data.decode().strip()
         print(f"[UDP] Von {addr}: {message}")  # Nachricht ausgeben
         if callback:
-            callback(message)  # Weiterleiten, z. B. an main.py oder CLI
+            callback(message, addr)  # Weiterleiten, z. B. an main.py oder CLI
 
 ##Sendet eine UDP-Nachricht an eine bestimmte IP-Adresse und Port (JOIN, WHO, etc.)
 def udp_send(message, ip, port): 
