@@ -9,8 +9,8 @@ from cli import get_own_ip
 
 # Beispielhafte bekannte Nutzer – für lokale Tests mit sich selbst
 bekannte_nutzer = {
-    "Sara": ("127.0.0.1", 5001),
-    "TestHost": ("127.0.0.1", 5002)
+    "Sara": ("127.0.0.1", 5555),
+    "TestHost": ("127.0.0.1", 5556)
 }
 
 chat_verlauf = []  # Chatverlauf zur Anzeige und Speicherung
@@ -59,6 +59,8 @@ class ChatGUI:
 
         self.empfang_thread = threading.Thread(target=self.empfange_tcp, daemon=True)
         self.empfang_thread.start()
+        
+        self.empfangs_port = 5555 if self.handle == "Sara" else 5556
 
     def schreibe_chat(self, text):
         self.chatbox.configure(state='normal')
@@ -116,9 +118,10 @@ class ChatGUI:
         self.speichere_verlauf()
         self.master.destroy()
 
+
     def empfange_tcp(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
-            server.bind(("0.0.0.0", 5555))
+            server.bind(("0.0.0.0", self.empfangs_port))
             server.listen()
             while True:
                 conn, addr = server.accept()
