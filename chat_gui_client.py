@@ -95,10 +95,10 @@ class ChatGUI:
             handle = teile[1]
             port = int(teile[2])
             ip = addr[0]
-            if handle != self.handle:
-                bekannte_nutzer[handle] = (ip, port)
-                self.schreibe_chat(f"[JOIN] Neuer Nutzer: {handle} @ {ip}:{port}")
-                self.update_ziel_menu()
+            
+            bekannte_nutzer[handle] = (ip, port)
+            self.schreibe_chat(f"[JOIN] Neuer Nutzer: {handle} @ {ip}:{port}")
+            self.update_ziel_menu()
 
         elif cmd == "KNOWUSERS":
             eintraege = " ".join(teile[1:]).split(", ")
