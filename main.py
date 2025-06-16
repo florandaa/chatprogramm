@@ -75,7 +75,7 @@ udp_send("WHO", broadcast_ip, whoisport)
 
 #TESTZWECK!!!
 known_users["Sara"] = ("192.168.2.164", 5001)
-known_users["TestHost"] = ("192.168.2.164", 5002)
+known_users["Floranda"] = ("192.168.2.164", 5002)
 
 # === CLI starten (z. B. mit /msg, /verlauf, /nutzer etc.) ===
 try:

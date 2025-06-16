@@ -9,8 +9,8 @@ from cli import get_own_ip
 
 # Beispielhafte bekannte Nutzer – für lokale Tests mit sich selbst
 bekannte_nutzer = {
-    "Sara": ("127.0.0.1", 5555),
-    "TestHost": ("127.0.0.1", 5556)
+    "Sara": ("192.168.2.111", 5001),
+    "Floranda": ("192.168.2.222", 5002)
 }
 
 chat_verlauf = []  # Chatverlauf zur Anzeige und Speicherung
@@ -26,9 +26,9 @@ class ChatGUI:
         self.handle = simpledialog.askstring("Name", "Dein Benutzername:")
         # Setze dynamisch den Empfangsport je nach Benutzername
         if self.handle == "Sara":
-            self.empfangs_port = 5555
-        elif self.handle == "TestHost":
-            self.empfangs_port = 5556
+            self.empfangs_port = 5001
+        elif self.handle == "Floranda":
+            self.empfangs_port = 5002
         else:
             self.empfangs_port = 5560  # Backup-Port für neue Namen
         self.ziel = tk.StringVar(value="Sara")
