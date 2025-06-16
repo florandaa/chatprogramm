@@ -7,16 +7,7 @@ import os
 from network import load_config, tcp_send,udp_send,udp_listener
 from cli import get_own_ip
 
-<<<<<<< HEAD
 bekannte_nutzer = {}  # Globale Variable für bekannte Nutzer
-=======
-# Beispielhafte bekannte Nutzer – für lokale Tests mit sich selbst
-bekannte_nutzer = {
-    "Sara": ("10.54.143.52", 5555),
-    "Floranda": ("10.55.140.182", 5556)
-}
-
->>>>>>> b87d95668c5c5a776c1849752d25f8545a5091f5
 chat_verlauf = []  # Chatverlauf zur Anzeige und Speicherung
 # @file chat_gui_client.py
 
@@ -34,17 +25,11 @@ class ChatGUI:
 
         # Setze dynamisch den Empfangsport je nach Benutzername
         if self.handle == "Sara":
-<<<<<<< HEAD
 
             self.empfangs_port = 5001
         elif self.handle == "Floranda":
 
             self.empfangs_port = 5002
-=======
-            self.empfangs_port = 5555
-        elif self.handle == "Floranda":
-            self.empfangs_port = 5556
->>>>>>> b87d95668c5c5a776c1849752d25f8545a5091f5
         else:
             self.empfangs_port = 5560  # Backup-Port für neue Namen
 
