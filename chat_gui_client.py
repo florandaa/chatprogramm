@@ -53,8 +53,7 @@ class ChatGUI:
         else:
             self.empfangs_port = 5560  # Backup-Port für neue Namen
 
-        self.ziel = tk.StringVar(value="Sara")
-
+        self.ziel = tk.StringVar(value="(niemand)")  # Standardwert für Empfänger
         self.chatbox = scrolledtext.ScrolledText(self.frame, wrap=tk.WORD, state='disabled', width=60, height=20, 
                                                           bg="#ffffff", fg="#000000", font=("Segoe UI", 10), bd=1, relief="solid")
         self.chatbox.grid(row=0, column=0, columnspan=4, pady=(0, 10))
@@ -69,7 +68,7 @@ class ChatGUI:
         self.image_button = ttk.Button(self.frame, text="Bild senden", command=self.bild_senden)
         self.image_button.grid(row=1, column=3, pady=(0, 10), sticky='we')
 
-        self.ziel_label = ttk.Label(self.frame, text="Ziel:")
+        self.ziel_label = ttk.Label(self.frame, text="Empfänger:")
         self.ziel_label.grid(row=2, column=0, sticky='w')
 
         initial_choices = list(bekannte_nutzer.keys()) or["(niemand)"]
@@ -81,7 +80,7 @@ class ChatGUI:
         self.name_button = ttk.Button(self.frame, text="Name ändern", command=self.name_aendern)
         self.name_button.grid(row=2, column=2, pady=(0, 10), sticky='we')
 
-        self.exit_button = ttk.Button(self.frame, text="Beenden", command=self.beenden)
+        self.exit_button = ttk.Button(self.frame, text="Verlassen", command=self.beenden)
         self.exit_button.grid(row=2, column=3, pady=(0, 10), sticky='we')
 
         self.verlauf_button = ttk.Button(self.frame, text="Verlauf speichern", command=self.speichere_verlauf)
@@ -194,19 +193,27 @@ class ChatGUI:
             self.schreibe_chat(f"[INFO] Benutzername geändert zu {self.handle}")
 
     def update_ziel_menu(self):
-        menu = self.ziel_menu['menu']
-        menu.delete(0, 'end')
-        for name in bekannte_nutzer.keys():
-            menu.add_command(label=name, command=lambda value=name: self.ziel.set(value))
+        aktuelle_auswahl = self.ziel.get()
 
-        if self.ziel.get() == "(niemand)" and bekannte_nutzer:
-            first = list(bekannte_nutzer.keys())[0]
-            self.ziel.set(first)
-        
-        # Nutzer-Listebox aktualisieren
+        # Aktualisiere die Nutzerliste in der Listbox
         self.nutzer_listbox.delete(0, 'end')
         for name in bekannte_nutzer.keys():
             self.nutzer_listbox.insert(tk.END, name)
+
+        # Menü komplett neu aufbauen
+        self.ziel_menu.destroy()
+        self.ziel_menu = ttk.OptionMenu(self.frame, self.ziel, None, *bekannte_nutzer.keys())
+        self.ziel_menu.grid(row=2, column=1, sticky='w')
+
+
+        #Empfänger automatisch auf den ersten Eintrag setzen, wenn nichts ausgewählt ist oder der Eintrag nicht mehr existiert
+        if aktuelle_auswahl == "(niemand)" or aktuelle_auswahl not in bekannte_nutzer:
+            if bekannte_nutzer:
+                neuer_empfaenger = list(bekannte_nutzer.keys())[-1]  # Letzter Eintrag in der Liste
+                self.ziel.set(neuer_empfaenger)
+            else:
+                self.ziel.set("(niemand)")
+
 
     def beenden(self):
         self.speichere_verlauf()

@@ -74,8 +74,8 @@ time.sleep(1)
 udp_send("WHO", broadcast_ip, whoisport)
 
 #TESTZWECK!!!
-known_users["Sara"] = ("10.54.143.52", 5555)
-known_users["Floranda"] = ("10.55.140.182", 5556)
+known_users["Sara"] = ("10.54.143.52", 5001)
+known_users["Floranda"] = ("10.55.140.182", 5002)
 
 # === CLI starten (z. B. mit /msg, /verlauf, /nutzer etc.) ===
 try:
