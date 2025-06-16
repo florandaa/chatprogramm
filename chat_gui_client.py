@@ -4,7 +4,7 @@ import threading
 import time
 import socket
 import os
-import tkinter.tkk as ttk
+import tkinter.ttk as ttk
 from network import load_config, tcp_send,udp_send,udp_listener
 from cli import get_own_ip
 
