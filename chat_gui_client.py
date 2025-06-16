@@ -23,6 +23,8 @@ class ChatGUI:
 
         self.handle = simpledialog.askstring("Name", "Dein Benutzername:")
 
+        udp_send("WHO", "255.255.255.255", self.whoisport)  # Sende WHO-Nachricht beim Start
+
         # Setze dynamisch den Empfangsport je nach Benutzername
         if self.handle == "Sara":
 
@@ -99,6 +101,10 @@ class ChatGUI:
             bekannte_nutzer[handle] = (ip, port)
             self.schreibe_chat(f"[JOIN] Neuer Nutzer: {handle} @ {ip}:{port}")
             self.update_ziel_menu()
+            
+            if self.ziel.get() == "(niemand)" and bekannte_nutzer:
+                first = list(bekannte_nutzer.keys())[0]
+                self.ziel.set(first)  # Setze den ersten bekannten Nutzer als Ziel
 
         elif cmd == "KNOWUSERS":
             eintraege = " ".join(teile[1:]).split(", ")
@@ -175,7 +181,12 @@ class ChatGUI:
         menu.delete(0, 'end')
         for name in bekannte_nutzer.keys():
             menu.add_command(label=name, command=lambda value=name: self.ziel.set(value))
-    
+
+        if self.ziel.get() == "(niemand)" and bekannte_nutzer:
+            first = list(bekannte_nutzer.keys())[0]
+            self.ziel.set(first)
+            
+
     def beenden(self):
         self.speichere_verlauf()
         self.master.destroy()
