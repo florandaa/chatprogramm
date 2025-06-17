@@ -17,6 +17,7 @@ class ChatGUI:
         config = load_config()
         self.whoisport = config.get('whoisport', 4000)  # Port für Discovery
         self.autoreply_text = config.get("autoreply", "Ich bin gerade abwesend")
+        self.broadcast_ip = config.get("broadcast_ip", "255.255.255.255")
         self.abwesend = False
 
         self.master = master
@@ -77,7 +78,7 @@ class ChatGUI:
 
         self.handle = simpledialog.askstring("Name", "Dein Benutzername:")
 
-        udp_send("WHO", "255.255.255.255", self.whoisport)  # Sende WHO-Nachricht beim Start
+        udp_send("WHO", self.broadcast_ip, self.whoisport)  # Sende WHO-Nachricht beim Start
 
         # Setze dynamisch den Empfangsport je nach Benutzername
         if self.handle == "Sara":
@@ -138,9 +139,9 @@ class ChatGUI:
 
         # Join + WHO-Nachrichten senden
         time.sleep(1)  # Warten, damit Listener bereit sind
-        udp_send(f"JOIN {self.handle} {self.empfangs_port}", "255.255.255.255", self.whoisport)
+        udp_send(f"JOIN {self.handle} {self.empfangs_port}", self.broadcast_ip, self.whoisport)
         time.sleep(1)
-        udp_send("WHO", "255.255.255.255", self.whoisport)
+        udp_send("WHO", self.broadcast_ip, self.whoisport)
 
     def verarbeitete_udp_nachricht(self, message, addr):
         teile = message.strip().split()   
@@ -156,6 +157,7 @@ class ChatGUI:
             bekannte_nutzer[handle] = (ip, port)
             self.schreibe_chat(f"[JOIN] Neuer Nutzer: {handle} @ {ip}:{port}")
             self.update_ziel_menu()
+            self.schreibe_chat(f"[INFO] Nutzerliste aktualisiert: {list(bekannte_nutzer.keys())}")
 
         elif cmd == "KNOWUSERS":
             eintraege = " ".join(teile[1:]).split(", ")
@@ -256,12 +258,18 @@ class ChatGUI:
     def beenden(self):
         self.speichere_verlauf()
         self.master.destroy()
-        udp_send(f"LEAVE {self.handle}", "255.255.255.255", self.whoisport)
+        udp_send(f"LEAVE {self.handle}", self.broadcast_ip, self.whoisport)
 
 
     def empfange_tcp(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
-            server.bind(("0.0.0.0", self.empfangs_port))
+            try:
+                server.bind(("0.0.0.0", self.empfangs_port))
+                print(f"TCP-Server gestartet auf Port {self.empfangs_port}")
+            except Exception as e:
+                print(f"[FEHLER] Konnte TCP-Port {self.empfangs_port} nicht binden: {e}")
+                self.schreibe_chat(f"[FEHLER] TCP-Port {self.empfangs_port} blockiert- bitte firewall prüfen.")
+                return
             server.listen()
             while True:
                 conn, addr = server.accept()
