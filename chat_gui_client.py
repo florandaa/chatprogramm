@@ -4,6 +4,7 @@ import threading
 import time
 import socket
 import os
+import queue
 import tkinter.ttk as ttk
 from network import load_config, tcp_send,udp_send,udp_listener
 from cli import get_own_ip
@@ -20,6 +21,11 @@ class ChatGUI:
         self.broadcast_ip = config.get("broadcast_ip", "255.255.255.255")
         self.abwesend = False
 
+        self.running = True  # Flag, um den Hauptthread zu steuern
+
+        self.gui_queue = queue.Queue()  # Queue für GUI-Updates
+        self.master.after(100, self.process_queue)  # Starte Queue-Verarbeitung
+        
         self.master = master
         self.master.title("ChA12Room")
 
@@ -143,6 +149,7 @@ class ChatGUI:
         self.empfang_thread = threading.Thread(target=self.empfange_tcp, daemon=True)
         self.empfang_thread.start()
         
+        self.server_socket = None
 
         # Join + WHO-Nachrichten senden
         time.sleep(1)
@@ -162,8 +169,9 @@ class ChatGUI:
             ip = addr[0]
             
             bekannte_nutzer[handle] = (ip, port)
-            self.schreibe_chat(f"[JOIN] Neuer Nutzer: {handle} @ {ip}:{port}")
-            self.update_ziel_menu()
+            self.gui_queue.put((self.schreibe_chat, (f"[JOIN] Neuer Nutzer: {handle} @ {ip}:{port}",)))
+            self.gui_queue.put((self.update_ziel_menu, ()))
+            
             self.schreibe_chat(f"[INFO] Nutzerliste aktualisiert: {list(bekannte_nutzer.keys())}")
             
             # Antwort mit eigener Nutzertaabelle an den neuen CLient senden'
@@ -178,22 +186,34 @@ class ChatGUI:
                     bekannte_nutzer[handle] = (ip, int(port))
                 except:
                     continue
-            self.update_ziel_menu() 
+            self.gui_queue.put((self.schreibe_chat, (f"[INFO] Nutzerliste aktualisiert: {list(bekannte_nutzer.keys())}",)))
+            self.gui_queue.put((self.update_ziel_menu, ()))
+            
 
         elif cmd == "LEAVE" and len(teile) == 2:
             handle = teile[1]
             if handle in bekannte_nutzer:
                 del bekannte_nutzer[handle]
-                self.schreibe_chat(f"[LEAVE] Nutzer {handle} hat den Chat verlassen.")
-                self.update_ziel_menu()
+                self.gui_queue.put((self.schreibe_chat, (f"[LEAVE] Nutzer {handle} hat den Chat verlassen.",)))
+                self.gui_queue.put((self.update_ziel_menu, ()))
+                
                
-    
+    def verarbeitete_gui_queue(self):
+        try:
+            while True:
+                func, args = self.gui_queue.get_nowait()
+                func(*args)
+        except queue.Empty:
+            pass
+        self.master.after(100, self.verarbeitete_gui_queue)  # Weiterverarbeiten
     def schreibe_chat(self, text):
-        self.chatbox.configure(state='normal')
-        self.chatbox.insert(tk.END, text + "\n")
-        self.chatbox.configure(state='disabled')
-        self.chatbox.yview(tk.END)
-        chat_verlauf.append(text)
+        def gui_action(text):
+            self.chatbox.configure(state='normal')
+            self.chatbox.insert(tk.END, text + "\n")
+            self.chatbox.configure(state='disabled')
+            self.chatbox.yview(tk.END)
+            chat_verlauf.append(text)
+        self.gui_queue.put((gui_action, (),))  # Füge die Aktion der Queue hinzu
 
     def sende_nachricht(self, event=None):
         nachricht = self.entry.get().strip()
@@ -244,26 +264,26 @@ class ChatGUI:
             self.schreibe_chat(f"[INFO] Benutzername geändert zu {self.handle}")
 
     def update_ziel_menu(self):
-        aktuelle_auswahl = self.ziel.get()
+        def gui_action():
+            aktuelle_auswahl = self.ziel.get()
 
-        # Aktualisiere die Nutzerliste in der Listbox
-        self.nutzer_listbox.delete(0, 'end')
-        for name in bekannte_nutzer.keys():
-            self.nutzer_listbox.insert(tk.END, name)
-
-        # Menü komplett neu aufbauen
-        self.ziel_menu.destroy()
-        self.ziel_menu = ttk.OptionMenu(self.left_area, self.ziel, *bekannte_nutzer.keys())
-        self.ziel_menu.grid(row=2, column=1, sticky='w', padx=(0, 5))
-
-
-        #Empfänger automatisch auf den ersten Eintrag setzen, wenn nichts ausgewählt ist oder der Eintrag nicht mehr existiert
-        if aktuelle_auswahl == "(niemand)" or aktuelle_auswahl not in bekannte_nutzer:
-            if bekannte_nutzer:
-                neuer_empfaenger = list(bekannte_nutzer.keys())[-1]  # Letzter Eintrag in der Liste
-                self.ziel.set(neuer_empfaenger)
+            self.nutzer_listbox.delete(0, 'end')
+            for name in bekannte_nutzer.keys():
+                self.nutzer_listbox.insert(tk.END, name)
+            # Aktualisiere die Nutzerliste im Listbox-Widget   
+            self.ziel_menu.destroy()
+            self.ziel_menu = ttk.OptionMenu(self.left_area, self.ziel, *bekannte_nutzer.keys())
+            self.ziel_menu.grid(row=2, column=1, sticky='w', padx=(0, 5))
+            
+            # Wenn die aktuelle Auswahl nicht mehr existiert, setze sie auf "(niemand)"
+            if aktuelle_auswahl == "(niemand)" or aktuelle_auswahl not in bekannte_nutzer:
+                if bekannte_nutzer:
+                    neuer_empfaenger = list(bekannte_nutzer.keys())[-1]
+                    self.ziel.set(neuer_empfaenger)
             else:
                 self.ziel.set("(niemand)")
+        aktuelle_auswahl = self.ziel.get()
+        self.gui_queue.put((gui_action, (),))  # Füge die Aktion der Queue hinzu
 
     def toggle_abwesenheit(self):
         self.abwesend = not self.abwesend
@@ -272,28 +292,43 @@ class ChatGUI:
         self.schreibe_chat(f"[INFO] Abwesenheitsmodus ist jetzt {status}.")
 
     def beenden(self):
-        self.speichere_verlauf()
-        self.master.destroy()
+        self.running = False  # Stoppe TCP-Schleife
         udp_send(f"LEAVE {self.handle}", self.broadcast_ip, self.whoisport)
-
+        self.speichere_verlauf()
+        if self.server_socket:
+            try:
+                self.server_socket.close()  # Schließe den TCP-Server-Socket
+                print("[INFO] TCP-Server geschlossen.")
+            except Exception as e:
+                print(f"[WARNUNG] Fehler beim Schließen des TCP-Servers: {e}")
+        self.master.destroy()
 
     def empfange_tcp(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket = server
+        try:
+            server.bind(("0.0.0.0", self.empfangs_port))
+            print(f"TCP-Server gestartet auf Port {self.empfangs_port}")
+        except Exception as e:
+            print(f"[FEHLER] Konnte TCP-Port {self.empfangs_port} nicht binden: {e}")
+            self.schreibe_chat(f"[FEHLER] TCP-Port {self.empfangs_port} blockiert- bitte firewall prüfen.")
+            return
+        server.listen()
+        server.settimeout(1)  # Setze Timeout für accept
+        while self.running:
             try:
-                server.bind(("0.0.0.0", self.empfangs_port))
-                print(f"TCP-Server gestartet auf Port {self.empfangs_port}")
-            except Exception as e:
-                print(f"[FEHLER] Konnte TCP-Port {self.empfangs_port} nicht binden: {e}")
-                self.schreibe_chat(f"[FEHLER] TCP-Port {self.empfangs_port} blockiert- bitte firewall prüfen.")
-                return
-            server.listen()
-            while True:
                 conn, addr = server.accept()
                 with conn:
-                    daten = conn.recv(1024)
+                    daten = b""
+                    while True:
+                        packet = conn.recv(1024)
+                        if not packet:
+                            break
+                        daten += packet
                     try:
                         text = daten.decode()
-                        self.schreibe_chat(f"[Empfangen von {addr[0]}] {text}")
+                        self.gui_queue.put((self.schreibe_chat, (f"[Empfangen von {addr[0]}] {text}",)))
+                    
 
                         if self.abwesend and text.startswith("MSG"):
                             try:
@@ -303,14 +338,17 @@ class ChatGUI:
                                     ip = addr [0]
                                     antwort = f"MSG {self.handle} {self.autoreply_text}"
                                     tcp_send(antwort, ip, self.empfangs_port)
-                                    self.schreibe_chat(f"(Auto-Reply an {absender}) {self.autoreply_text}")
+                                    self.gui_queue.put((self.schreibe_chat, (f"(Auto-Reply an {absender}) {self.autoreply_text}",)))
+                                    
                             except Exception as e:
                                 print("[Auto-Reply Fehler]", e)     
                     except UnicodeDecodeError:
                         dateiname = f"empfangenes_bild_{int(time.time())}.jpg"
                         with open(dateiname, "wb") as f:
                             f.write(daten)
-                        self.schreibe_chat(f"[Bild empfangen von {addr[0]}] Gespeichert als {dateiname}")
+                        self.gui_queue.put((self.schreibe_chat, (f"[Bild empfangen von {addr[0]}] Gespeichert als {dateiname}",)))
+            except socket.timeout:
+                continue     
 
 if __name__ == "__main__":
     root = tk.Tk()
