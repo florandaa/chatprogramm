@@ -15,6 +15,9 @@ chat_verlauf = []  # Chatverlauf zur Anzeige und Speicherung
 
 class ChatGUI:
     def __init__(self, master):
+        self.master = master
+        self.master.title("ChA12Room")
+
         config = load_config()
         self.whoisport = config.get('whoisport', 4000)  # Port für Discovery
         self.autoreply_text = config.get("autoreply", "Ich bin gerade abwesend")
@@ -29,8 +32,6 @@ class ChatGUI:
         self.gui_queue = queue.Queue()  # Queue für GUI-Updates
         self.master.after(100, self.process_queue)  # Starte Queue-Verarbeitung
         
-        self.master = master
-        self.master.title("ChA12Room")
 
         self.master.rowconfigure(0, weight=1)
         self.master.columnconfigure(0, weight=1)
