@@ -105,6 +105,8 @@ class ChatGUI:
         #Frühzeitig JOIN senden, damit andere Nutzer dich sehen können
         time.sleep(1)  # Warten, damit Listener bereit sind
         udp_send(f"JOIN {self.handle} {self.empfangs_port}", self.broadcast_ip, self.whoisport)  
+        bekannte_nutzer[self.handle] = (get_own_ip(), self.empfangs_port)  # Füge dich selbst hinzu
+        self.gui_queue.put((self.update_ziel_menu, ()))  # Aktualisiere die Nutzerliste
         time.sleep(1)  # Warten, damit andere Nutzer dich sehen können
         udp_send("WHO", self.broadcast_ip, self.whoisport)  # Sende WHO-Nachricht beim Start
  
@@ -182,7 +184,7 @@ class ChatGUI:
             self.gui_queue.put((self.schreibe_chat, (f"[JOIN] Neuer Nutzer: {handle} @ {ip}:{port}",)))
             self.gui_queue.put((self.update_ziel_menu, ()))
             
-            self.schreibe_chat(f"[INFO] Nutzerliste aktualisiert: {list(bekannte_nutzer.keys())}")
+            self.gui_queue.put((self.schreibe_chat, (f"[INFO] Nutzerliste aktualisiert: {list(bekannte_nutzer.keys())}",)))
             
             # Antwort mit eigener Nutzertaabelle an den neuen CLient senden'
             antwort = "KNOWUSERS " + ", ".join([f"{h} {ip} {port}" for h, (ip, port) in bekannte_nutzer.items()])
@@ -274,6 +276,8 @@ class ChatGUI:
             self.schreibe_chat(f"[INFO] Benutzername geändert zu {self.handle}")
 
     def update_ziel_menu(self):
+
+        print("[DEBUG] Zielmenü aktualisiert:", list(bekannte_nutzer.keys()))
         def gui_action():
             aktuelle_auswahl = self.ziel.get()
 
