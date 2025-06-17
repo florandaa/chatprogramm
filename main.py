@@ -5,7 +5,7 @@ import signal
 import socket
 import sys
 from network import load_config, udp_listener, tcp_server, udp_send
-from cli import start_cli, chat_verlauf 
+from cli import start_cli, chat_verlauf, parse_args 
 
 
 # @file main.py
@@ -40,6 +40,31 @@ def handle_tcp_message(message):
     print(f"[MSG] {message}")
 
 print(f"[DEBUG] Geladene Konfigurationsdatei: {config_path}")
+if __name__ == "__main__":
+    args = parse_args()
+    config = load_config()
+
+    # CLI-Overrides
+    if args.handle:
+        config["handle"] = args.handle
+    if args.port:
+        config["port"] = args.port
+    if args.autoreply:
+        config["autoreply"] = args.autoreply
+    if args.whoisport:
+        config["whoisport"] = args.whoisport
+    if args.broadcast_ip:
+        config["broadcast_ip"] = args.broadcast_ip
+
+    # Benutzername aus config verwenden
+    benutzername = config.get("handle", "Benutzer")
+
+    # Debug-Ausgabe (optional)
+    print("[DEBUG] Aktive Konfiguration:")
+    for key, value in config.items():
+        print(f"{key} = {value}")
+
+    start_cli([])  # später kannst du hier bekannte_nutzer reingeben
 
 # # === Lokale IP ermitteln (Debug/Info-Zwecke) ===
 def get_own_ip():

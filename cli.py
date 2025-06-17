@@ -1,10 +1,12 @@
 # @file cli.py
 # @brief Kommandozeilen-Schnittstelle für den Chat-Client
 
-from network import tcp_send
+import argparse
+import toml
+from network import tcp_send, load_config
 
 chat_verlauf = []  # Gespeicherte Nachrichten lokal (für Verlauf & Export)
-benutzername = "Benutzer"  # Standardname beim Start
+benutzername = None  # Standardname beim Start
 
 # Liste aller bekannten Nutzer – gefüllt nach WHO/KNOWUSERS
 bekannte_nutzer = {}  # Wird aus main.py gesetzt
@@ -20,6 +22,15 @@ def zeige_hilfe():
     print("/ip                 - Zeigt deine aktuelle IP-Adresse")
     print("exit                - Beendet den Chat")
 
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Chatprogramm starten mit optionaler Konfig-Überschreibung")
+    parser.add_argument("--handle", help="Benutzername")
+    parser.add_argument("--port", nargs=2, type=int, metavar=("UDP1", "UDP2"), help="Portbereich")
+    parser.add_argument("--autoreply", help="Text für automatische Antwort")
+    parser.add_argument("--whoisport", type=int, help="Discovery-Port")
+    parser.add_argument("--broadcast_ip", help="Broadcast-Adresse")
+    return parser.parse_args()
 
 # === Verlauf als Datei speichern ===
 def speichere_verlauf():
@@ -41,7 +52,7 @@ def get_own_ip():
 
 
 # === Hauptfunktion zur Ausführung der CLI ===
-def start_cli(known_users_ref):
+def start_cli(known_users_ref=None):
     global benutzername 
     global bekannte_nutzer
     bekannte_nutzer = known_users_ref
@@ -118,4 +129,6 @@ def start_cli(known_users_ref):
                 print("Fehler: Nachricht darf nicht leer sein.")
 
 if __name__ == "__main__":
-    start_cli([])  # temporär für Tests
+    from network import load_config
+    config = load_config()
+    start_cli(config)
