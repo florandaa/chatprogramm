@@ -20,20 +20,56 @@ class ChatGUI:
         self.abwesend = False
 
         self.master = master
-        self.master.title("Chat GUI")
-        self.frame = tk.Frame(master, bg="#f2f2f2", padx=15, pady=15)
+        self.master.title("ChA12Room")
+
+        self.master.rowconfigure(0, weight=1)
+        self.master.columnconfigure(0, weight=1)
+        self.master.grid_rowconfigure(0, weight=1)
+        self.master.grid_columnconfigure(0, weight=1)
+
+        self.frame = ttk.Frame(master, padding=15)
         self.frame.grid(row=0, column=0,  sticky='nsew')
+        # Linker Bereich: Chatbereich
+        self.left_area = ttk.Frame(self.frame)
+        self.left_area.grid(row=0, column=0, sticky='nsew')
+
+        # Rechter Bereich: Nutzerliste 
+        #self.right_area = ttk.Frame(self.frame, width=200)
+        #self.right_area.grid(row=0, column=1, sticky='ns', padx=(15, 0))
+
+        #Grid-Anpassungen
+        self.frame.columnconfigure(0, weight=3) # Chatbereich  wächst ein wenig stärker
+        self.frame.columnconfigure(1, weight=1) # Nutzerliste bleibt schmaler
+        self.frame.rowconfigure(0, weight=1) 
+
         self.master.configure(bg="#e6e6e6")
 
+        self.style = ttk.Style()
+        self.style.theme_use("clam")  # Verwende das "clam" Theme für bessere Kompatibilität
+        self.style.configure("TFrame", background="#f5f7fa")
+
+        self.style.configure("TButton", 
+                            background="#4CAF50", foreground="white",
+                            font=("Segoe UI", 10, "bold"),
+                            padding=6, borderwidth=0)
+        self.style.map("TButton",
+                        background=[('active', '#2f6cd1'), 
+                                    ('disabled', '#cccccc')]) 
+        
+        self.style.configure("TEntry",
+                            font=("Segoe UI", 10),
+                            padding=5)
 
         # Neuer Frame links für die Nutzerliste
-        self.nutzer_frame = tk.Frame(self.frame, bg="#ffffff", relief="solid")
-        self.nutzer_frame.grid(row=0, column=4, rowspan=4, padx=(15, 0), pady=10, sticky='ns')
+        self.nutzer_frame = ttk.Frame(self.frame, padding=10)
+        self.nutzer_frame.grid(row=0, column=1, rowspan=4, padx=(10, 0), pady=10, sticky='ns')
 
-        self.nutzer_label = tk.Label(self.nutzer_frame, text="Online Nutzer:", bg="#ffffff", font=("Segoe UI", 10, "bold"))
-        self.nutzer_label.pack(anchor="nw", padx=10, pady=5)
+        self.nutzer_label = tk.Label(self.nutzer_frame, text="Online Nutzer:", font=("Segoe UI", 12, "bold"),
+        fg="#4CAF50", bg="#f5f7fa",anchor="center",justify="center")
+        self.nutzer_label.pack(anchor="center", pady=(5, 10))
 
-        self.nutzer_listbox = tk.Listbox(self.nutzer_frame, width=20, height=20, bg="#f9f9f9", fg="#000", bd=0, highlightthickness=0)
+        self.nutzer_listbox = tk.Listbox(self.nutzer_frame, width=18, height=20, bg="#ffffff", fg="#333333", highlightthickness=1,
+                                        relief="solid", selectbackground="#cce5ff", selectforeground="#000000",)
         self.nutzer_listbox.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0,10))
 
         self.nutzer_listbox.pack(fill=tk.BOTH, expand=True)
@@ -54,39 +90,40 @@ class ChatGUI:
             self.empfangs_port = 5560  # Backup-Port für neue Namen
 
         self.ziel = tk.StringVar(value="(niemand)")  # Standardwert für Empfänger
-        self.chatbox = scrolledtext.ScrolledText(self.frame, wrap=tk.WORD, state='disabled', width=60, height=20, 
-                                                          bg="#ffffff", fg="#000000", font=("Segoe UI", 10), bd=1, relief="solid")
-        self.chatbox.grid(row=0, column=0, columnspan=4, pady=(0, 10))
+        self.chatbox = scrolledtext.ScrolledText(self.left_area, wrap=tk.WORD, state='disabled', width=60, height=20, 
+                                                          bg="#ffffff", fg="#333333", font=("Segoe UI", 10), 
+                                                          bd=0, relief="flat", padx=10, pady=10)
+        self.chatbox.grid(row=0, column=0, columnspan=4, pady=(0, 15), padx=(0, 10), sticky='nsew')
 
-        self.entry = tk.Entry(self.frame, width=40)
-        self.entry.grid(row=1, column=0, columnspan=2, pady=(0, 10), sticky='we')
+        self.entry = ttk.Entry(self.left_area, width=40)
+        self.entry.grid(row=1, column=0, columnspan=2, pady=(0, 10),padx=(0, 5), sticky='we')
         self.entry.bind("<Return>", self.sende_nachricht)
 
-        self.send_button = ttk.Button(self.frame, text="Senden", command=self.sende_nachricht)
-        self.send_button.grid(row=1, column=2, pady=(0, 10), sticky='we')
+        self.send_button = ttk.Button(self.left_area, text="Senden", command=self.sende_nachricht)
+        self.send_button.grid(row=1, column=2, pady=(0, 10), padx=5, sticky='we')
 
-        self.image_button = ttk.Button(self.frame, text="Bild senden", command=self.bild_senden)
-        self.image_button.grid(row=1, column=3, pady=(0, 10), sticky='we')
+        self.image_button = ttk.Button(self.left_area, text="Bild senden", command=self.bild_senden)
+        self.image_button.grid(row=1, column=3, pady=(0, 10), padx=5, sticky='we')
 
-        self.ziel_label = ttk.Label(self.frame, text="Empfänger:")
-        self.ziel_label.grid(row=2, column=0, sticky='w')
+        self.ziel_label = ttk.Label(self.left_area, text="Empfänger:")
+        self.ziel_label.grid(row=2, column=0, sticky='w', padx=(0, 5))
 
         initial_choices = list(bekannte_nutzer.keys()) or["(niemand)"]
         self.ziel.set(initial_choices[0])  # Setze Standardwert
 
-        self.ziel_menu = ttk.OptionMenu(self.frame, self.ziel, *initial_choices)
-        self.ziel_menu.grid(row=2, column=1, sticky='w')
+        self.ziel_menu = ttk.OptionMenu(self.left_area, self.ziel, *initial_choices)
+        self.ziel_menu.grid(row=2, column=1, sticky='w', padx=(0, 5))
 
-        self.name_button = ttk.Button(self.frame, text="Name ändern", command=self.name_aendern)
-        self.name_button.grid(row=2, column=2, pady=(0, 10), sticky='we')
+        self.name_button = ttk.Button(self.left_area, text="Name ändern", command=self.name_aendern)
+        self.name_button.grid(row=2, column=2, pady=(0, 10),padx=(0, 5), sticky='we')
 
-        self.exit_button = ttk.Button(self.frame, text="Verlassen", command=self.beenden)
+        self.exit_button = ttk.Button(self.left_area, text="Verlassen", command=self.beenden)
         self.exit_button.grid(row=2, column=3, pady=(0, 10), sticky='we')
 
-        self.verlauf_button = ttk.Button(self.frame, text="Verlauf speichern", command=self.speichere_verlauf)
+        self.verlauf_button = ttk.Button(self.left_area, text="Verlauf speichern", command=self.speichere_verlauf)
         self.verlauf_button.grid(row=3, column=0, columnspan=2, pady=(10, 0))
 
-        self.ip_label = tk.Label(self.frame, text=f"Deine IP: {get_own_ip()}")
+        self.ip_label = ttk.Label(self.left_area, text=f"Deine IP: {get_own_ip()}")
         self.ip_label.grid(row=3, column=2, columnspan=2, pady=(10, 0), sticky='e')
 
         self.empfang_thread = threading.Thread(target=self.empfange_tcp, daemon=True)
@@ -203,8 +240,8 @@ class ChatGUI:
 
         # Menü komplett neu aufbauen
         self.ziel_menu.destroy()
-        self.ziel_menu = ttk.OptionMenu(self.frame, self.ziel, None, *bekannte_nutzer.keys())
-        self.ziel_menu.grid(row=2, column=1, sticky='w')
+        self.ziel_menu = ttk.OptionMenu(self.left_area, self.ziel, *bekannte_nutzer.keys())
+        self.ziel_menu.grid(row=2, column=1, sticky='w', padx=(0, 5))
 
 
         #Empfänger automatisch auf den ersten Eintrag setzen, wenn nichts ausgewählt ist oder der Eintrag nicht mehr existiert
