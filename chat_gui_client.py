@@ -81,14 +81,11 @@ class ChatGUI:
         udp_send("WHO", self.broadcast_ip, self.whoisport)  # Sende WHO-Nachricht beim Start
 
         # Setze dynamisch den Empfangsport je nach Benutzername
-        if self.handle == "Sara":
-
-            self.empfangs_port = 5001
-        elif self.handle == "Floranda":
-
-            self.empfangs_port = 5002
-        else:
-            self.empfangs_port = 5560  # Backup-Port für neue Namen
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as temp_socket:
+            temp_socket.bind(('', 0))
+            self.empfangs_port = temp_socket.getsockname()[1]
+        self.port_label = ttk.Label(self.left_area, text=f"Empfangsport: {self.empfangs_port}")
+        self.port_label.grid(row=4, column=2, columnspan=2, sticky='e', pady=(5, 0))
 
         self.ziel = tk.StringVar(value="(niemand)")  # Standardwert für Empfänger
         self.chatbox = scrolledtext.ScrolledText(self.left_area, wrap=tk.WORD, state='disabled', width=60, height=20, 
