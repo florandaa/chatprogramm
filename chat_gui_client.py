@@ -21,6 +21,9 @@ class ChatGUI:
         self.broadcast_ip = config.get("broadcast_ip", "255.255.255.255")
         self.abwesend = False
 
+        self.letzte_autoreply = {}  # Speichert die letzte Autoreply-Nachricht pro Nutzer
+        self.autoreply_cooldown = 30  # Cooldown-Zeit für Autoreplies in Sekunden
+
         self.running = True  # Flag, um den Hauptthread zu steuern
 
         self.gui_queue = queue.Queue()  # Queue für GUI-Updates
@@ -336,9 +339,18 @@ class ChatGUI:
                                 absender = teile [1]
                                 if absender != self.handle:
                                     ip = addr [0]
-                                    antwort = f"MSG {self.handle} {self.autoreply_text}"
-                                    tcp_send(antwort, ip, self.empfangs_port)
-                                    self.gui_queue.put((self.schreibe_chat, (f"(Auto-Reply an {absender}) {self.autoreply_text}",)))
+                                    if absender not in self.letzte_autoreply or ip == get_own_ip():
+                                        return
+                                    
+                                    # Prüfe Cooldown für Autoreply
+                                    jetzt = time.time()
+                                    zuletzt = self.letzte_autoreply.get(absender, 0)
+                                    if jetzt - zuletzt >= self.autoreply_cooldown:
+                                        antwort = f"MSG {self.handle} {self.autoreply_text}"
+                                        tcp_send(antwort, ip, self.empfangs_port)
+                                        self.gui_queue.put((self.schreibe_chat, (f"(Auto-Reply an {absender}) {self.autoreply_text}",)))
+                                    else:
+                                        print(f"[Auto-Reply] Cooldown aktiv für {absender}, warte noch {self.autoreply_cooldown - (jetzt - zuletzt):.1f} Sekunden.")    
                                     
                             except Exception as e:
                                 print("[Auto-Reply Fehler]", e)     
