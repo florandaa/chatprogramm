@@ -117,6 +117,5 @@ def start_cli(known_users_ref):
             else:
                 print("Fehler: Nachricht darf nicht leer sein.")
 
-# === Startet CLI sofort, wenn Datei direkt ausgeführt wird ===
 if __name__ == "__main__":
-    start_cli()
+    start_cli([])  # temporär für Tests
