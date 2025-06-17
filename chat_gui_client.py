@@ -129,6 +129,9 @@ class ChatGUI:
         self.verlauf_button = ttk.Button(self.left_area, text="Verlauf speichern", command=self.speichere_verlauf)
         self.verlauf_button.grid(row=3, column=0, columnspan=2, pady=(10, 0))
 
+        self.abwesen_button = ttk.Button(self.left_area, text="Abwesenheit: AUS", command=self.toggle_abwesenheit)
+        self.abwesen_button.grid(row=3, column=2, columnspan=2, pady=(10, 0), sticky='e')
+
         self.ip_label = ttk.Label(self.left_area, text=f"Deine IP: {get_own_ip()}")
         self.ip_label.grid(row=3, column=2, columnspan=2, pady=(10, 0), sticky='e')
 
@@ -259,6 +262,11 @@ class ChatGUI:
             else:
                 self.ziel.set("(niemand)")
 
+    def toggle_abwesenheit(self):
+        self.abwesend = not self.abwesend
+        status = "EIN" if self.abwesend else "AUS"
+        self.abwesen_button.config(text=f"Abwesenheit: {status}")
+        self.schreibe_chat(f"[INFO] Abwesenheitsmodus ist jetzt {status}.")
 
     def beenden(self):
         self.speichere_verlauf()
