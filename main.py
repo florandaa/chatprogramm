@@ -5,25 +5,42 @@ import signal
 import socket
 import sys
 from network import load_config, udp_listener, tcp_server, udp_send
-from cli import start_cli, chat_verlauf, parse_args 
+from cli import start_cli, chat_verlauf, parse_args  # parse_args importiert
 
 
 # @file main.py
 # @brief Einstiegspunkt des Chatprogramms. Startet Netzwerkdienste und meldet den Client im lokalen Netzwerk an.
 
+# === CLI-Argumente lesen ===
+args = parse_args()
+
 # === Konfiguration laden ===
 config_path = sys.argv[1] if len(sys.argv) > 1 else "config.toml"
 config = load_config(config_path)
+
+# === CLI-Overrides anwenden ===
+if args.handle:
+    config["handle"] = args.handle
+if args.port:
+    config["port"] = args.port
+if args.autoreply:
+    config["autoreply"] = args.autoreply
+if args.whoisport:
+    config["whoisport"] = args.whoisport
+if args.broadcast_ip:
+    config["broadcast_ip"] = args.broadcast_ip
+
+# === Konfig-Werte extrahieren ===
 broadcast_ip = config.get("broadcast_ip", "255.255.255.255")
 tcp_port = config["port"][0]
 udp_port = config["port"][1]
 handle = config["handle"]
 whoisport = config["whoisport"]
+benutzername = config.get("handle", "Benutzer")  # Fehler behoben
 
-known_users = {}  # Neue globale Variable
+known_users = {}  # Globale Nutzerliste
 
-# === Verarbeitung eingehender UDP-Nachrichten ===
-# Erkennt JOIN-Nachrichten und speichert neue Nutzer in known_users
+# === UDP-Handler (JOIN) ===
 def handle_udp_message(message, addr):
     parts = message.strip().split()
     if parts[0] == "JOIN" and len(parts) == 3:
@@ -32,41 +49,19 @@ def handle_udp_message(message, addr):
         sender_ip = addr[0]
         known_users[user_handle] = (sender_ip, user_port)
         print(f"[INFO] Neuer Nutzer bekannt: {user_handle} @ {sender_ip}:{user_port}")
-       
 
+# === TCP-Handler (MSG etc.) ===
 def handle_tcp_message(message):
-    print(f"[MSG] {message}")  # Oder: chat_verlauf.append(message)
-    chat_verlauf.append(message)
     print(f"[MSG] {message}")
+    chat_verlauf.append(message)
 
+# === Debug-Ausgabe ===
 print(f"[DEBUG] Geladene Konfigurationsdatei: {config_path}")
-if __name__ == "__main__":
-    args = parse_args()
-    config = load_config()
+print("[DEBUG] Aktive Konfiguration:")
+for key, value in config.items():
+    print(f"{key} = {value}")
 
-    # CLI-Overrides
-    if args.handle:
-        config["handle"] = args.handle
-    if args.port:
-        config["port"] = args.port
-    if args.autoreply:
-        config["autoreply"] = args.autoreply
-    if args.whoisport:
-        config["whoisport"] = args.whoisport
-    if args.broadcast_ip:
-        config["broadcast_ip"] = args.broadcast_ip
-
-    # Benutzername aus config verwenden
-    benutzername = config.get("handle", "Benutzer")
-
-    # Debug-Ausgabe (optional)
-    print("[DEBUG] Aktive Konfiguration:")
-    for key, value in config.items():
-        print(f"{key} = {value}")
-
-    start_cli([])  # später kannst du hier bekannte_nutzer reingeben
-
-# # === Lokale IP ermitteln (Debug/Info-Zwecke) ===
+# === Lokale IP ermitteln ===
 def get_own_ip():
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -84,34 +79,33 @@ def clean_exit():
 
 atexit.register(clean_exit)
 
-# === Listener und Server starten ===
+# === Listener starten ===
 if config_path != "config2.toml":
-    threading.Thread(target=udp_listener, args=(whoisport, handle_udp_message), daemon=True).start() # Discovery (JOIN/WHO/LEAVE)
-threading.Thread(target=udp_listener, args=(udp_port, handle_udp_message), daemon=True).start()   # Nachrichten-Empfang via UDP
-threading.Thread(target=tcp_server, args=(tcp_port,handle_tcp_message), daemon=True).start()     # TCP-Empfang (MSG, IMG)
+    threading.Thread(target=udp_listener, args=(whoisport, handle_udp_message), daemon=True).start()
+threading.Thread(target=udp_listener, args=(udp_port, handle_udp_message), daemon=True).start()
+threading.Thread(target=tcp_server, args=(tcp_port, handle_tcp_message), daemon=True).start()
 
-
-# === Beitritt zum Netzwerk (JOIN) und Anfrage nach Teilnehmern (WHO) ===
-time.sleep(1) # Warten, damit Listener bereit sind
+# === Netzwerkbeitritt ===
+time.sleep(1)
 udp_send(f"JOIN {handle} {tcp_port}", broadcast_ip, whoisport)
 
 time.sleep(1)
 udp_send("WHO", broadcast_ip, whoisport)
 
-#TESTZWECK!!!
+# === Testdaten ===
 known_users["Sara"] = ("10.54.143.52", 5001)
 known_users["Floranda"] = ("10.55.140.182", 5002)
 
-# === CLI starten (z. B. mit /msg, /verlauf, /nutzer etc.) ===
+# === CLI starten ===
 try:
-    start_cli(known_users)
+    start_cli(known_users)  # known_users statt []
 except Exception as e:
     print(f"[WARNUNG] CLI nicht gefunden oder Fehler: {e}")
     print("[INFO] Programm bleibt im Leerlauf aktiv.")
     while True:
         time.sleep(1)
 
-# Damit STRG+C ordentlich LEAVE sendet und Threads beendet
+# === STRG+C behandeln ===
 def handle_sigint(signum, frame):
     clean_exit()
     print("[INFO] Programm wurde beendet.")
