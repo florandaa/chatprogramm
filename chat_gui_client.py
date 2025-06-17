@@ -30,7 +30,7 @@ class ChatGUI:
         self.running = True  # Flag, um den Hauptthread zu steuern
 
         self.gui_queue = queue.Queue()  # Queue für GUI-Updates
-        self.master.after(100, self.process_queue)  # Starte Queue-Verarbeitung
+        self.master.after(100, self.verarbeitete_gui_queue)  # Starte Queue-Verarbeitung
         
 
         self.master.rowconfigure(0, weight=1)
@@ -353,7 +353,7 @@ class ChatGUI:
                                 absender = teile [1]
                                 if absender != self.handle:
                                     ip = addr [0]
-                                    if absender not in self.letzte_autoreply or ip == get_own_ip():
+                                    if absender == self.letzte_autoreply or ip == get_own_ip():
                                         return
                                     
                                     # Prüfe Cooldown für Autoreply
