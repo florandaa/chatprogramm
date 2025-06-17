@@ -82,18 +82,23 @@ class ChatGUI:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as temp_socket:
             temp_socket.bind(('', 0))
             self.empfangs_port = temp_socket.getsockname()[1]  # Dynamisch einen freien Port       
+        self.port_label = ttk.Label(self.left_area, text=f"Empfangsport: {self.empfangs_port}")
+        self.port_label.grid(row=4, column=2, columnspan=2, sticky='e', pady=(5, 0))
        
+        self.discovery_thread = threading.Thread(
+            target=udp_listener,
+            args=(self.whoisport, self.verarbeitete_udp_nachricht),
+            daemon=True
+        )   
+        self.discovery_thread.start()
+
         #Frühzeitig JOIN senden, damit andere Nutzer dich sehen können
+        time.sleep(1)  # Warten, damit Listener bereit sind
         udp_send(f"JOIN {self.handle} {self.empfangs_port}", self.broadcast_ip, self.whoisport)  
 
         udp_send("WHO", self.broadcast_ip, self.whoisport)  # Sende WHO-Nachricht beim Start
-
-        # Setze dynamisch den Empfangsport je nach Benutzername
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as temp_socket:
-            temp_socket.bind(('', 0))
-            self.empfangs_port = temp_socket.getsockname()[1]
-        self.port_label = ttk.Label(self.left_area, text=f"Empfangsport: {self.empfangs_port}")
-        self.port_label.grid(row=4, column=2, columnspan=2, sticky='e', pady=(5, 0))
+ 
+        
 
         self.ziel = tk.StringVar(value="(niemand)")  # Standardwert für Empfänger
         self.chatbox = scrolledtext.ScrolledText(self.left_area, wrap=tk.WORD, state='disabled', width=60, height=20, 
@@ -158,6 +163,8 @@ class ChatGUI:
         cmd = teile[0]
         
         if cmd == "JOIN" and len(teile) == 3:
+
+
             handle = teile[1]
             port = int(teile[2])
             ip = addr[0]
@@ -166,6 +173,10 @@ class ChatGUI:
             self.schreibe_chat(f"[JOIN] Neuer Nutzer: {handle} @ {ip}:{port}")
             self.update_ziel_menu()
             self.schreibe_chat(f"[INFO] Nutzerliste aktualisiert: {list(bekannte_nutzer.keys())}")
+            
+            # Antwort mit eigener Nutzertaabelle an den neuen CLient senden'
+            antwort = "KNOWUSERS " + ", ".join([f"{h} {ip} {port}" for h, (ip, port) in bekannte_nutzer.items()])
+            udp_send(antwort, addr[0], self.whoisport)
 
         elif cmd == "KNOWUSERS":
             eintraege = " ".join(teile[1:]).split(", ")
