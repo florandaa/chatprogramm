@@ -149,10 +149,16 @@ class ChatGUI:
         self.ip_label = ttk.Label(self.left_area, text=f"Deine IP: {get_own_ip()}")
         self.ip_label.grid(row=3, column=2, columnspan=2, pady=(10, 0), sticky='e')
 
+        self.status_label = ttk.Label(self.left_area, text="", anchor="w", font=("Segoe UI", 9, "italic"))
+        self.status_label.grid(row=5, column=0, columnspan=4, sticky='w', pady=(5, 0))
+                                      
+
         self.empfang_thread = threading.Thread(target=self.empfange_tcp, daemon=True)
         self.empfang_thread.start()
         
         self.server_socket = None
+
+        self.aktualisiere_status()
 
         # Join + WHO-Nachrichten senden
         time.sleep(1)
@@ -293,6 +299,7 @@ class ChatGUI:
         status = "EIN" if self.abwesend else "AUS"
         self.abwesen_button.config(text=f"Abwesenheit: {status}")
         self.schreibe_chat(f"[INFO] Abwesenheitsmodus ist jetzt {status}.")
+        self.aktualisiere_status()
 
     def beenden(self):
         self.running = False  # Stoppe TCP-Schleife
@@ -305,6 +312,12 @@ class ChatGUI:
             except Exception as e:
                 print(f"[WARNUNG] Fehler beim Schließen des TCP-Servers: {e}")
         self.master.destroy()
+
+    def aktualisiere_status(self):
+        status_text = f"IP: {get_own_ip()} | Port: {self.empfangs_port} | "
+        status_text += "Abwesend" if self.abwesend else "Aktiv"
+        self.status_label.config(text=status_text)
+        self.master.after(3000, self.aktualisiere_status)  # Aktualisiere alle 3 Sekunden
 
     def empfange_tcp(self):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
