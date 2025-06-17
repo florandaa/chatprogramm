@@ -115,3 +115,16 @@ def start_cli(known_users_ref=None):
                 print("Nachricht gesendet:", nachricht)
             else:
                 print("Fehler: Nachricht darf nicht leer sein.")
+
+
+##temporäres Testen
+if __name__ == "__main__":
+    from network import load_config
+    config = load_config()
+    benutzername = config.get("handle", "Benutzer")
+    
+    print("[INFO] CLI direkt gestartet (Standalone-Modus)")
+    for key, value in config.items():
+        print(f"{key} = {value}")
+
+    start_cli()
