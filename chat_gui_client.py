@@ -77,6 +77,14 @@ class ChatGUI:
         
 
         self.handle = simpledialog.askstring("Name", "Dein Benutzername:")
+       
+        #Zuerst einen freien Port suchen
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as temp_socket:
+            temp_socket.bind(('', 0))
+            self.empfangs_port = temp_socket.getsockname()[1]  # Dynamisch einen freien Port       
+       
+        #Frühzeitig JOIN senden, damit andere Nutzer dich sehen können
+        udp_send(f"JOIN {self.handle} {self.empfangs_port}", self.broadcast_ip, self.whoisport)  
 
         udp_send("WHO", self.broadcast_ip, self.whoisport)  # Sende WHO-Nachricht beim Start
 
@@ -194,7 +202,7 @@ class ChatGUI:
                 self.schreibe_chat(f"(an {ziel}) {self.handle}: {nachricht}")
             except Exception as e:
                 self.schreibe_chat(f"[FEHLER] Nachricht nicht gesendet: {e}")
-            threading.Thread(target=senden, daemon=True).start()
+            
             self.entry.delete(0, tk.END)
         else:
             self.schreibe_chat(f"[FEHLER] Unbekannter Nutzer: {ziel}")
