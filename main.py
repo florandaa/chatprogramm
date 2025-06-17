@@ -15,7 +15,7 @@ from cli import start_cli, chat_verlauf, parse_args  # parse_args importiert
 args = parse_args()
 
 # === Konfiguration laden ===
-config_path = sys.argv[1] if len(sys.argv) > 1 else "config.toml"
+config_path = getattr(args, "config", "config.toml")
 config = load_config(config_path)
 
 # === CLI-Overrides anwenden ===
@@ -92,9 +92,6 @@ udp_send(f"JOIN {handle} {tcp_port}", broadcast_ip, whoisport)
 time.sleep(1)
 udp_send("WHO", broadcast_ip, whoisport)
 
-# === Testdaten ===
-known_users["Sara"] = ("10.54.143.52", 5001)
-known_users["Floranda"] = ("10.55.140.182", 5002)
 
 # === CLI starten ===
 try:
@@ -112,3 +109,8 @@ def handle_sigint(signum, frame):
     sys.exit(0)
 
 signal.signal(signal.SIGINT, handle_sigint)
+
+
+# === Testdaten(vor der Abgabe entfernen CLI schnell testen) ===
+known_users["Sara"] = ("10.54.143.52", 5001)
+known_users["Floranda"] = ("10.55.140.182", 5002)

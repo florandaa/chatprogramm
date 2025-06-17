@@ -117,7 +117,7 @@ def start_cli(known_users_ref=None):
                 print("Fehler: Nachricht darf nicht leer sein.")
 
 
-##temporäres Testen
+# === Nur für Entwicklung und Tests ===
 if __name__ == "__main__":
     from network import load_config
     config = load_config()
