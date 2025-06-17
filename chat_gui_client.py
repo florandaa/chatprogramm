@@ -95,7 +95,7 @@ class ChatGUI:
         #Frühzeitig JOIN senden, damit andere Nutzer dich sehen können
         time.sleep(1)  # Warten, damit Listener bereit sind
         udp_send(f"JOIN {self.handle} {self.empfangs_port}", self.broadcast_ip, self.whoisport)  
-
+        time.sleep(1)  # Warten, damit andere Nutzer dich sehen können
         udp_send("WHO", self.broadcast_ip, self.whoisport)  # Sende WHO-Nachricht beim Start
  
         
@@ -140,16 +140,8 @@ class ChatGUI:
         self.empfang_thread = threading.Thread(target=self.empfange_tcp, daemon=True)
         self.empfang_thread.start()
         
-        self.discovery_thread = threading.Thread(
-            target=udp_listener,
-            args=(self.whoisport, self.verarbeitete_udp_nachricht),
-            daemon=True
-        )
-        self.discovery_thread.start()
 
         # Join + WHO-Nachrichten senden
-        time.sleep(1)  # Warten, damit Listener bereit sind
-        udp_send(f"JOIN {self.handle} {self.empfangs_port}", self.broadcast_ip, self.whoisport)
         time.sleep(1)
         udp_send("WHO", self.broadcast_ip, self.whoisport)
 
