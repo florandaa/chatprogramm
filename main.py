@@ -13,58 +13,46 @@ from cli import start_cli, chat_verlauf, parse_args  # parse_args importiert
 
 # === CLI-Argumente lesen ===
 args = parse_args()
+debug_mode = getattr(args, "debug", False)
 
-# === Konfiguration laden ===
 config_path = getattr(args, "config", "config.toml")
 config = load_config(config_path)
-
 globals()["config"] = config
 
-
 # === CLI-Overrides anwenden ===
-if args.handle:
-    config["handle"] = args.handle
-if args.port:
-    config["port"] = args.port
-if args.autoreply:
-    config["autoreply"] = args.autoreply
-if args.whoisport:
-    config["whoisport"] = args.whoisport
-if args.broadcast_ip:
-    config["broadcast_ip"] = args.broadcast_ip
+if args.handle: config["handle"] = args.handle
+if args.port: config["port"] = args.port
+if args.autoreply: config["autoreply"] = args.autoreply
+if args.whoisport: config["whoisport"] = args.whoisport
+if args.broadcast_ip: config["broadcast_ip"] = args.broadcast_ip
 
-# === Konfig-Werte extrahieren ===
+# === Konfig extrahieren ===
 broadcast_ip = config.get("broadcast_ip", "255.255.255.255")
-tcp_port = config["port"][0]
-udp_port = config["port"][1]
+tcp_port, udp_port = config["port"]
 handle = config["handle"]
 whoisport = config["whoisport"]
-benutzername = config.get("handle", "Benutzer")  # Fehler behoben
+known_users = {}
 
-known_users = {}  # Globale Nutzerliste
-
-# === UDP-Handler (JOIN) ===
+# === UDP-Nachrichten verarbeiten ===
 def handle_udp_message(message, addr):
+    if debug_mode:
+        print(f"[DEBUG] UDP empfangen: {message} von {addr}")
     parts = message.strip().split()
     if parts[0] == "JOIN" and len(parts) == 3:
         user_handle = parts[1]
         user_port = int(parts[2])
-        sender_ip = addr[0]
-        known_users[user_handle] = (sender_ip, user_port)
-        print(f"[INFO] Neuer Nutzer bekannt: {user_handle} @ {sender_ip}:{user_port}")
+        known_users[user_handle] = (addr[0], user_port)
+        print(f"[INFO] Neuer Nutzer: {user_handle} @ {addr[0]}:{user_port}")
 
-# === TCP-Handler (MSG etc.) ===
+
+# === TCP-Nachrichten verarbeiten ===
 def handle_tcp_message(message):
+    if debug_mode:
+        print(f"[DEBUG] TCP empfangen: {message}")
     print(f"[MSG] {message}")
     chat_verlauf.append(message)
 
-# === Debug-Ausgabe ===
-print(f"[DEBUG] Geladene Konfigurationsdatei: {config_path}")
-print("[DEBUG] Aktive Konfiguration:")
-for key, value in config.items():
-    print(f"{key} = {value}")
-
-# === Lokale IP ermitteln ===
+# === Lokale IP anzeigen ===
 def get_own_ip():
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -72,15 +60,21 @@ def get_own_ip():
             return s.getsockname()[0]
     except:
         return "127.0.0.1"
+if debug_mode:
+    print(f"[DEBUG] Konfigurationsdatei: {config_path}")
+    print("[DEBUG] Aktive Konfiguration:")
+    for key, value in config.items():
+        print(f"  {key} = {value}")
 
-local_ip = get_own_ip()
-print(f"[INFO] {handle} ist erreichbar unter {local_ip}:{tcp_port}")
+print(f"[INFO] {handle} erreichbar unter {get_own_ip()}:{tcp_port}")
 
-# === LEAVE-Nachricht beim Beenden senden ===
+# === Beenden-Handler ===
 def clean_exit():
     udp_send(f"LEAVE {handle}", broadcast_ip, whoisport)
+    print("[INFO] LEAVE gesendet.")
 
 atexit.register(clean_exit)
+signal.signal(signal.SIGINT, lambda s, f: (clean_exit(), sys.exit(0)))
 
 # === Listener starten ===
 if config_path != "config2.toml":
@@ -98,22 +92,10 @@ udp_send("WHO", broadcast_ip, whoisport)
 
 # === CLI starten ===
 try:
-    start_cli(known_users)  # known_users statt []
+    start_cli(known_users)
 except Exception as e:
-    print(f"[WARNUNG] CLI nicht gefunden oder Fehler: {e}")
-    print("[INFO] Programm bleibt im Leerlauf aktiv.")
+    print(f"[WARNUNG] CLI nicht verfügbar: {e}")
     while True:
         time.sleep(1)
 
-# === STRG+C behandeln ===
-def handle_sigint(signum, frame):
-    clean_exit()
-    print("[INFO] Programm wurde beendet.")
-    sys.exit(0)
 
-signal.signal(signal.SIGINT, handle_sigint)
-
-
-# === Testdaten(vor der Abgabe entfernen CLI schnell testen) ===
-known_users["Sara"] = ("10.54.143.52", 5001)
-known_users["Floranda"] = ("10.55.140.182", 5002)
