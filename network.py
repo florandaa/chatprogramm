@@ -6,16 +6,11 @@ import threading  # Um Server/Listener im Hintergrund laufen zu lassen
 import toml # Zum Einlesen der Konfigurationsdatei (.toml)
 import os
 
-#Arbeitsverzeichnis anzeigen (kann beim Debuggen helfen, aber ist optional)
-print("Arbeitsverzeichnis:", os.getcwd())
+debug_mode = False  # Wird durch main.py oder cli.py gesetzt
 
-#Pfad zur config.toml berechnen
-pfad = os.path.abspath("config.toml") 
-
-def load_config(path = "config.toml"):  # config.toml laden um in main.py ports und benutzernamen zu laden
-    import toml
-    with open(os.path.abspath(path), "r") as f:
-        return toml.load(f)
+# === Konfigurationsdatei laden ===
+def load_config(path="config.toml"):
+    return toml.load(os.path.abspath(path))
 
  ##Wartet auf Nachrichten auf einem bestimmten Port 
 def udp_listener(port, callback=None):
@@ -24,17 +19,22 @@ def udp_listener(port, callback=None):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)  
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Erlaubt Broadcast-
     sock.bind(("0.0.0.0", port)) # An allen IPs dieses Rechners auf Port lauschen
-    print(f"[UDP] Wartet auf Port {port}...")
+    
+    if debug_mode:
+        print(f"[DEBUG] UDP-Listener auf Port {port} gestartet")
+    
     while True:
         data, addr = sock.recvfrom(1024)  # Wartet auf eingehende Nachrichten
         message = data.decode().strip()
-        print(f"[UDP] Von {addr}: {message}")  # Nachricht ausgeben
+        if debug_mode:
+            print(f"[DEBUG] UDP empfangen von {addr}: {message}")
         if callback:
-            callback(message, addr)  # Weiterleiten, z. B. an main.py oder CLI
+            callback(message, addr)
 
 ##Sendet eine UDP-Nachricht an eine bestimmte IP-Adresse und Port (JOIN, WHO, etc.)
 def udp_send(message, ip, port): 
-    print(f"[DEBUG] Sende UDP an {ip}:{port} mit: {message}")
+    if debug_mode:
+        print(f"[DEBUG] UDP senden an {ip}:{port} → {message}")
     
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -56,10 +56,14 @@ def tcp_server(port, callback=None):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # TCP-Socket
     sock.bind(("0.0.0.0", port))  # Lauscht auf allen Netzwerkschnittstellen
     sock.listen()  # Verbindungen akzeptieren
+    
     print(f"[TCP] Server läuft auf Port {port}")
+    
     while True:
         conn, addr = sock.accept()  # Wartet auf eingehende Verbindung
         data = conn.recv(1024).decode("utf-8")  # Liest Nachricht
+        if debug_mode:
+            print(f"[DEBUG] TCP empfangen von {addr}: {data}")
         if callback:
             callback(data)
         else:
@@ -76,6 +80,8 @@ def tcp_send(message, ip, port, binary=False):
             sock.sendall(message)
         else:
             sock.sendall(message.encode())
+        if debug_mode:
+            print(f"[DEBUG] TCP gesendet an {ip}:{port} → {message if not binary else '[BINÄRDATEN]'}")
         # Optional: auf Antwort warten
         # response = sock.recv(1024)
         # print("Antwort:", response.decode())
@@ -86,12 +92,12 @@ def tcp_send(message, ip, port, binary=False):
 
 # === TCP-Listener (nur für GUI – ruft Callback auf)
 def starte_tcp_listener(port, callback):
-    import socket
     def tcp_server():
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.bind(("0.0.0.0", port))
         server.listen()
-        print(f"TCP-Server gestartet auf Port {port}")
+        if debug_mode:
+            print(f"[DEBUG] TCP-Listener gestartet auf Port {port}")
         while True:
             conn, _ = server.accept()
             data = conn.recv(1024).decode("utf-8")
