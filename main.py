@@ -18,6 +18,9 @@ args = parse_args()
 config_path = getattr(args, "config", "config.toml")
 config = load_config(config_path)
 
+globals()["config"] = config
+
+
 # === CLI-Overrides anwenden ===
 if args.handle:
     config["handle"] = args.handle

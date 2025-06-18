@@ -257,7 +257,7 @@ class ChatGUI:
             self.gui_queue.put((self.schreibe_chat, (f"[INFO] Nutzerliste aktualisiert: {list(bekannte_nutzer.keys())}",)))
             
             # Antwort mit eigener Nutzertaabelle an den neuen CLient senden'
-            antwort = "KNOWUSERS " + ", ".join([f"{h} {ip} {port}" for h, (ip, port) in bekannte_nutzer.items()])
+            antwort = "KNOWUSERS " + " ".join([f"{h} {ip} {port}" for h, (ip, port) in bekannte_nutzer.items()])
             udp_send(antwort, addr[0], self.whoisport)
 
         elif cmd == "KNOWUSERS":

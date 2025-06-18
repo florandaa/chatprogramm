@@ -79,6 +79,23 @@ def tcp_send(message, ip, port):
     finally:
         sock.close()  # Verbindung schließen
 
+# === TCP-Listener (nur für GUI – ruft Callback auf)
+def starte_tcp_listener(port, callback):
+    import socket
+    def tcp_server():
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.bind(("0.0.0.0", port))
+        server.listen()
+        print(f"TCP-Server gestartet auf Port {port}")
+        while True:
+            conn, _ = server.accept()
+            data = conn.recv(1024).decode("utf-8")
+            if data:
+                callback(data)
+            conn.close()
+
+    threading.Thread(target=tcp_server, daemon=True).start()
+
 ## Listener für mehrere Ports gleichzeitig starten (optional)
 def start_all_listeners(udp_ports, tcp_port, callback=None):
     for port in udp_ports:
