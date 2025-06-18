@@ -66,14 +66,19 @@ def tcp_server(port, callback=None):
             print(f"[TCP] Nachricht empfangen: {data}")
         conn.close()
 
-## für Kommunikation zwischen zwei Teilnehmern (z. B. MSG)
-def tcp_send(message, ip, port):
+## für Kommunikation zwischen zwei Teilnehmern 
+## binary für Text- und Bildversand
+def tcp_send(message, ip, port, binary=False):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # TCP-Socket
     try:
-        sock.connect((ip, port))  # Verbindung zum Server aufbauen
-        sock.sendall(message.encode())  # Nachricht senden
-        response = sock.recv(1024)  # Antwort empfangen
-        print("Antwort:", response.decode())  # Antwort anzeigen
+        sock.connect((ip, port))
+        if binary:
+            sock.sendall(message)
+        else:
+            sock.sendall(message.encode())
+        # Optional: auf Antwort warten
+        # response = sock.recv(1024)
+        # print("Antwort:", response.decode())
     except Exception as e:
         print(f"[FEHLER] TCP-Verbindung zu {ip}:{port} fehlgeschlagen:", e)
     finally:
