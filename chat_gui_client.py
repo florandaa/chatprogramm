@@ -22,7 +22,7 @@ class ChatGUI:
 
         config = load_config()
         self.config = config
-        self.broadcast_ip = self.config.get("broadcast_ip") or "255.255.255.255"
+        self.broadcast_ip = self.config.get("broadcast_ip") or "192.168.2.255"
 
 
         # CLI-Overrides
