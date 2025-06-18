@@ -1,16 +1,18 @@
 import tkinter as tk
 from tkinter import scrolledtext, simpledialog, filedialog
-import threading
+import threading 
 import time
 import socket
 import os
+import sys
 import queue
 import tkinter.ttk as ttk
-from network import load_config, tcp_send,udp_send,udp_listener
+from network import load_config, tcp_send, udp_send, udp_listener
 from cli import get_own_ip
 
 bekannte_nutzer = {}  # Globale Variable für bekannte Nutzer
 chat_verlauf = []  # Chatverlauf zur Anzeige und Speicherung
+
 # @file chat_gui_client.py
 
 class ChatGUI:
@@ -19,6 +21,29 @@ class ChatGUI:
         self.master.title("ChA12Room")
 
         config = load_config()
+
+        # CLI-Overrides
+        args = sys.argv[1:]
+
+        def get_arg(name, count=1, default=None, cast=str):
+            if name in args:
+                i = args.index(name)
+                try:
+                    if count == 1:
+                        return cast(args[i + 1])
+                    else:
+                        return [cast(arg) for arg in args[i + 1:i + 1 + count]]
+                except (IndexError, ValueError):
+                    print(f"[WARNUNG] Ungültiges Argument für {name}, Standard wird verwendet.")
+            return default
+
+        config["handle"] = get_arg("--handle", 1, config.get("handle"), str)
+        config["whoisport"] = get_arg("--whoisport", 1, config.get("whoisport"), int)
+        config["port"] = get_arg("--port", 2, config.get("port"), int)
+        config["autoreply"] = get_arg("--autoreply", 1, config.get("autoreply"), str)
+        config["broadcast_ip"] = get_arg("--broadcast_ip", 1, config.get("broadcast_ip"), str)
+        config["imagepath"] = get_arg("--imagepath", 1, config.get("imagepath"), str)
+
         self.whoisport = config.get('whoisport', 4000)  # Port für Discovery
         self.autoreply_text = config.get("autoreply", "Ich bin gerade abwesend")
         self.broadcast_ip = config.get("broadcast_ip", "255.255.255.255")
@@ -86,8 +111,7 @@ class ChatGUI:
         self.nutzer_listbox.pack(fill=tk.BOTH, expand=True)
         
 
-        self.handle = simpledialog.askstring("Name", "Dein Benutzername:")
-       
+        self.handle = config["handle"] or simpledialog.askstring("Name", "Dein Benutzername:")       
         #Zuerst einen freien Port suchen
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as temp_socket:
             temp_socket.bind(('', 0))
@@ -95,12 +119,15 @@ class ChatGUI:
         self.port_label = ttk.Label(self.left_area, text=f"Empfangsport: {self.empfangs_port}")
         self.port_label.grid(row=4, column=2, columnspan=2, sticky='e', pady=(5, 0))
        
-        self.discovery_thread = threading.Thread(
-            target=udp_listener,
-            args=(self.whoisport, self.verarbeitete_udp_nachricht),
-            daemon=True
-        )   
+        if self.whoisport > 0:
+            self.discovery_thread = threading.Thread(
+                target=udp_listener,
+                args=(self.whoisport, self.verarbeitete_udp_nachricht),
+                daemon=True
+        )
         self.discovery_thread.start()
+
+
 
         #Frühzeitig JOIN senden, damit andere Nutzer dich sehen können
         time.sleep(1)  # Warten, damit Listener bereit sind
@@ -225,8 +252,7 @@ class ChatGUI:
             self.chatbox.configure(state='disabled')
             self.chatbox.yview(tk.END)
             chat_verlauf.append(text)
-        self.gui_queue.put((gui_action, (),))  # Füge die Aktion der Queue hinzu
-
+        self.gui_queue.put((gui_action, (text,)))  # Argument wird korrekt übergeben
     def sende_nachricht(self, event=None):
         nachricht = self.entry.get().strip()
         if not nachricht:
