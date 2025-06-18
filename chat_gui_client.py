@@ -21,6 +21,8 @@ class ChatGUI:
         self.master.title("ChA12Room")
 
         config = load_config()
+        self.broadcast_ip = config.get("broadcast_ip") or "255.255.255.255"
+
 
         # CLI-Overrides
         args = sys.argv[1:]
@@ -44,19 +46,51 @@ class ChatGUI:
         config["broadcast_ip"] = get_arg("--broadcast_ip", 1, config.get("broadcast_ip"), str)
         config["imagepath"] = get_arg("--imagepath", 1, config.get("imagepath"), str)
 
-        self.whoisport = config.get('whoisport', 4000)  # Port für Discovery
+        self.whoisport = config.get("whoisport")
+        if self.whoisport == 0:
+            print("[INFO] UDP-Discovery deaktiviert.")
+        else:
+            print(f"[UDP] Wartet auf Port {self.whoisport}...")
+            self.discovery_thread = threading.Thread(
+                target=udp_listener,
+                args=(self.whoisport, self.verarbeitete_udp_nachricht),
+                daemon=True
+            )
+            self.discovery_thread.start()
         self.autoreply_text = config.get("autoreply", "Ich bin gerade abwesend")
-        self.broadcast_ip = config.get("broadcast_ip", "255.255.255.255")
         self.abwesend = False
 
         self.letzte_autoreply = {}  # Speichert die letzte Autoreply-Nachricht pro Nutzer
         self.autoreply_cooldown = 30  # Cooldown-Zeit für Autoreplies in Sekunden
 
         self.running = True  # Flag, um den Hauptthread zu steuern
+        # Wenn UDP-Discovery deaktiviert ist, versuche lokale Peer-Datei zu lesen
+        if self.whoisport == 0:
+            try:
+                import json
+                with open("peer_info.json", "r") as f:
+                    info = json.load(f)
+                    bekannte_nutzer[info["handle"]] = (info["ip"], info["port"])
+                    self.gui_queue.put((self.update_ziel_menu, ()))
+                    print(f"[INFO] Lokale Peer-Info geladen: {info}")
+            except Exception as e:
+                print(f"[WARNUNG] Konnte peer_info.json nicht laden: {e}")
+
 
         self.gui_queue = queue.Queue()  # Queue für GUI-Updates
         self.master.after(100, self.verarbeitete_gui_queue)  # Starte Queue-Verarbeitung
         
+        # NEU: Lokale Peer-Datei einlesen bei whoisport == 0
+        if self.whoisport == 0:
+            try:
+                import json
+                with open("peer_info.json", "r") as f:
+                    info = json.load(f)
+                    bekannte_nutzer[info["handle"]] = (info["ip"], info["port"])
+                    self.gui_queue.put((self.update_ziel_menu, ()))
+                    print(f"[INFO] Lokale Peer-Info geladen: {info}")
+            except Exception as e:
+                print(f"[WARNUNG] Konnte peer_info.json nicht laden: {e}")
 
         self.master.rowconfigure(0, weight=1)
         self.master.columnconfigure(0, weight=1)
@@ -117,6 +151,11 @@ class ChatGUI:
             temp_socket.bind(('', 0))
             self.empfangs_port = temp_socket.getsockname()[1]  # Dynamisch einen freien Port       
         self.port_label = ttk.Label(self.left_area, text=f"Empfangsport: {self.empfangs_port}")
+        # Wenn Discovery aktiv ist, speichere eigene Info für lokale Fallbacks
+        if self.whoisport > 0:
+            with open("peer_info.json", "w") as f:
+                import json
+                json.dump({"handle": self.handle, "ip": get_own_ip(), "port": self.empfangs_port}, f)
         self.port_label.grid(row=4, column=2, columnspan=2, sticky='e', pady=(5, 0))
        
         if self.whoisport > 0:
@@ -124,19 +163,26 @@ class ChatGUI:
                 target=udp_listener,
                 args=(self.whoisport, self.verarbeitete_udp_nachricht),
                 daemon=True
-        )
-        self.discovery_thread.start()
+            )
+            self.discovery_thread.start()
 
 
 
         #Frühzeitig JOIN senden, damit andere Nutzer dich sehen können
-        time.sleep(1)  # Warten, damit Listener bereit sind
-        udp_send(f"JOIN {self.handle} {self.empfangs_port}", self.broadcast_ip, self.whoisport)  
-        bekannte_nutzer[self.handle] = (get_own_ip(), self.empfangs_port)  # Füge dich selbst hinzu
-        self.gui_queue.put((self.update_ziel_menu, ()))  # Aktualisiere die Nutzerliste
-        time.sleep(1)  # Warten, damit andere Nutzer dich sehen können
-        udp_send("WHO", self.broadcast_ip, self.whoisport)  # Sende WHO-Nachricht beim Start
+        if self.whoisport > 0:
+            time.sleep(1)  # Warten, damit Listener bereit sind
+            udp_send(f"JOIN {self.handle} {self.empfangs_port}", self.broadcast_ip, self.whoisport)  
+            bekannte_nutzer[self.handle] = (get_own_ip(), self.empfangs_port)  # Füge dich selbst hinzu
+            self.gui_queue.put((self.update_ziel_menu, ()))  # Aktualisiere die Nutzerliste
+            # Zusätzlicher WHO-Send nur, wenn UDP erlaubt ist
+        if self.whoisport > 0:
+            time.sleep(1)  # Warten, damit andere Nutzer dich sehen können
+            udp_send("WHO", self.broadcast_ip, self.whoisport)  # Sende WHO-Nachricht beim Start
  
+        # Als Notlösung: füge Sara manuell zu Ilirjons bekannte_nutzer hinzu
+        if self.whoisport == 0:
+            print("[INFO] Fallback: füge Sara lokal hinzu")
+            bekannte_nutzer["Sara"] = ("127.0.0.1", 51588)
         
 
         self.ziel = tk.StringVar(value="(niemand)")  # Standardwert für Empfänger
@@ -190,9 +236,6 @@ class ChatGUI:
 
         self.aktualisiere_status()
 
-        # Join + WHO-Nachrichten senden
-        time.sleep(1)
-        udp_send("WHO", self.broadcast_ip, self.whoisport)
 
     def verarbeitete_udp_nachricht(self, message, addr):
         teile = message.strip().split()   
@@ -320,8 +363,8 @@ class ChatGUI:
                 if bekannte_nutzer:
                     neuer_empfaenger = list(bekannte_nutzer.keys())[-1]
                     self.ziel.set(neuer_empfaenger)
-            else:
-                self.ziel.set("(niemand)")
+           
+
         aktuelle_auswahl = self.ziel.get()
         self.gui_queue.put((gui_action, (),))  # Füge die Aktion der Queue hinzu
 
@@ -334,15 +377,16 @@ class ChatGUI:
 
     def beenden(self):
         self.running = False  # Stoppe TCP-Schleife
-        udp_send(f"LEAVE {self.handle}", self.broadcast_ip, self.whoisport)
-        self.speichere_verlauf()
-        if self.server_socket:
-            try:
-                self.server_socket.close()  # Schließe den TCP-Server-Socket
-                print("[INFO] TCP-Server geschlossen.")
-            except Exception as e:
-                print(f"[WARNUNG] Fehler beim Schließen des TCP-Servers: {e}")
-        self.master.destroy()
+        if self.whoisport > 0:
+            udp_send(f"LEAVE {self.handle}", self.broadcast_ip, self.whoisport)
+            self.speichere_verlauf()
+            if self.server_socket:
+                try:
+                    self.server_socket.close()  # Schließe den TCP-Server-Socket
+                    print("[INFO] TCP-Server geschlossen.")
+                except Exception as e:
+                    print(f"[WARNUNG] Fehler beim Schließen des TCP-Servers: {e}")
+            self.master.destroy()
 
     def aktualisiere_status(self):
         status_text = f"IP: {get_own_ip()} | Port: {self.empfangs_port} | "
@@ -377,36 +421,42 @@ class ChatGUI:
                         self.gui_queue.put((self.schreibe_chat, (f"[Empfangen von {addr[0]}] {text}",)))
                     
 
+
                         if self.abwesend and text.startswith("MSG"):
                             try:
                                 teile = text.split()
-                                absender = teile [1]
+                                absender = teile[1]
                                 if absender != self.handle:
-                                    ip = addr [0]
-                                    if absender == self.letzte_autoreply or ip == get_own_ip():
-                                        return
-                                    
-                                    # Prüfe Cooldown für Autoreply
+                                    ip = addr[0]
+
+                                    # Prüfe Cooldown
                                     jetzt = time.time()
                                     zuletzt = self.letzte_autoreply.get(absender, 0)
+
                                     if jetzt - zuletzt >= self.autoreply_cooldown:
                                         antwort = f"MSG {self.handle} {self.autoreply_text}"
                                         tcp_send(antwort, ip, self.empfangs_port)
+                                        self.letzte_autoreply[absender] = jetzt
                                         self.gui_queue.put((self.schreibe_chat, (f"(Auto-Reply an {absender}) {self.autoreply_text}",)))
                                     else:
-                                        print(f"[Auto-Reply] Cooldown aktiv für {absender}, warte noch {self.autoreply_cooldown - (jetzt - zuletzt):.1f} Sekunden.")    
-                                    
+                                        print(f"[Auto-Reply] Cooldown aktiv für {absender}, warte noch {self.autoreply_cooldown - (jetzt - zuletzt):.1f} Sekunden.")
+
                             except Exception as e:
-                                print("[Auto-Reply Fehler]", e)     
+                                print("[Auto-Reply Fehler]", e)
+    
                     except UnicodeDecodeError:
                         dateiname = f"empfangenes_bild_{int(time.time())}.jpg"
                         with open(dateiname, "wb") as f:
                             f.write(daten)
                         self.gui_queue.put((self.schreibe_chat, (f"[Bild empfangen von {addr[0]}] Gespeichert als {dateiname}",)))
             except socket.timeout:
-                continue     
+                continue  
+
+
+
 
 if __name__ == "__main__":
     root = tk.Tk()
     gui = ChatGUI(root)
-    root.mainloop()
+    root.mainloop()    
+      

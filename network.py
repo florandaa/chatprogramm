@@ -21,6 +21,7 @@ def load_config(path = "config.toml"):  # config.toml laden um in main.py ports 
 def udp_listener(port, callback=None):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP-Socket erstellen
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Erlaubt das Wiederverwenden der Adresse
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)  
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Erlaubt Broadcast-
     sock.bind(("0.0.0.0", port)) # An allen IPs dieses Rechners auf Port lauschen
     print(f"[UDP] Wartet auf Port {port}...")
