@@ -14,5 +14,5 @@ sleep 2
 
 echo "Starte Chat-CLI (Ilirjon, WHOIS-Port 4000)..."
 osascript -e 'tell application "Terminal"
-    do script "cd \"'"$PWD"'\" && python3.11 cli.py --handle Ilirjon --port 5200 5201 --whoisport 4000 --autoreply \"Bin gleich zurück\""
+    do script "cd \"'"$PWD"'\" && python3.11 chat_gui_client.py --handle Ilirjon --port 5200 5201 --whoisport 4000 --autoreply \"Bin gleich zurück\""
 end tell'
