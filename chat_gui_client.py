@@ -315,7 +315,10 @@ class ChatGUI:
             self.schreibe_chat(f"[FEHLER] Unbekannter Nutzer: {ziel}")
 
     def bild_senden(self):
-        pfad = filedialog.askopenfilename(title="Bild auswählen", filetypes=[("Bilddateien", "*.png;*.jpg;*.jpeg;*.gif")])
+        pfad = filedialog.askopenfilename(
+            title="Bild auswählen",
+            filetypes=[("PNG", "*.png"), ("JPG", "*.jpg"), ("JPEG", "*.jpeg"), ("GIF", "*.gif"), ("Alle Dateien", "*.*")]
+        )
         if not pfad:
             return
         ziel = self.ziel.get()
@@ -445,7 +448,9 @@ class ChatGUI:
                                 print("[Auto-Reply Fehler]", e)
     
                     except UnicodeDecodeError:
-                        dateiname = f"empfangenes_bild_{int(time.time())}.jpg"
+                        pfad = os.path.expanduser(config.get("imagepath", "."))
+                        os.makedirs(pfad, exist_ok=True)
+                        dateiname = os.path.join(pfad, f"empfangenes_bild_{int(time.time())}.jpg")
                         with open(dateiname, "wb") as f:
                             f.write(daten)
                         self.gui_queue.put((self.schreibe_chat, (f"[Bild empfangen von {addr[0]}] Gespeichert als {dateiname}",)))
