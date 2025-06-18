@@ -21,7 +21,8 @@ class ChatGUI:
         self.master.title("ChA12Room")
 
         config = load_config()
-        self.broadcast_ip = config.get("broadcast_ip") or "255.255.255.255"
+        self.config = config
+        self.broadcast_ip = self.config.get("broadcast_ip") or "255.255.255.255"
 
 
         # CLI-Overrides
@@ -39,14 +40,14 @@ class ChatGUI:
                     print(f"[WARNUNG] Ungültiges Argument für {name}, Standard wird verwendet.")
             return default
 
-        config["handle"] = get_arg("--handle", 1, config.get("handle"), str)
+        config["handle"] = get_arg("--handle", 1, self.config.get("handle"), str)
         config["whoisport"] = get_arg("--whoisport", 1, config.get("whoisport"), int)
         config["port"] = get_arg("--port", 2, config.get("port"), int)
         config["autoreply"] = get_arg("--autoreply", 1, config.get("autoreply"), str)
         config["broadcast_ip"] = get_arg("--broadcast_ip", 1, config.get("broadcast_ip"), str)
         config["imagepath"] = get_arg("--imagepath", 1, config.get("imagepath"), str)
 
-        self.whoisport = config.get("whoisport")
+        self.whoisport = self.config.get("whoisport")
         if self.whoisport == 0:
             print("[INFO] UDP-Discovery deaktiviert.")
         else:
@@ -57,7 +58,7 @@ class ChatGUI:
                 daemon=True
             )
             self.discovery_thread.start()
-        self.autoreply_text = config.get("autoreply", "Ich bin gerade abwesend")
+        self.autoreply_text = self.config.get("autoreply", "Ich bin gerade abwesend")
         self.abwesend = False
 
         self.letzte_autoreply = {}  # Speichert die letzte Autoreply-Nachricht pro Nutzer
@@ -448,7 +449,7 @@ class ChatGUI:
                                 print("[Auto-Reply Fehler]", e)
     
                     except UnicodeDecodeError:
-                        pfad = os.path.expanduser(config.get("imagepath", "."))
+                        pfad = os.path.expanduser(self.config.get("imagepath", "."))
                         os.makedirs(pfad, exist_ok=True)
                         dateiname = os.path.join(pfad, f"empfangenes_bild_{int(time.time())}.jpg")
                         with open(dateiname, "wb") as f:
