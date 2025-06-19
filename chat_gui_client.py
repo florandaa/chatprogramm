@@ -65,19 +65,8 @@ class ChatGUI:
         self.autoreply_cooldown = 30  # Cooldown-Zeit für Autoreplies in Sekunden
 
         self.running = True  # Flag, um den Hauptthread zu steuern
-        # Wenn UDP-Discovery deaktiviert ist, versuche lokale Peer-Datei zu lesen
-        if self.whoisport == 0:
-            try:
-                import json
-                with open("peer_info.json", "r") as f:
-                    info = json.load(f)
-                    bekannte_nutzer[info["handle"]] = (info["ip"], info["port"])
-                    self.gui_queue.put((self.update_ziel_menu, ()))
-                    print(f"[INFO] Lokale Peer-Info geladen: {info}")
-            except Exception as e:
-                print(f"[WARNUNG] Konnte peer_info.json nicht laden: {e}")
-
-
+        
+        
         self.gui_queue = queue.Queue()  # Queue für GUI-Updates
         self.master.after(100, self.verarbeitete_gui_queue)  # Starte Queue-Verarbeitung
         
@@ -151,13 +140,13 @@ class ChatGUI:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as temp_socket:
             temp_socket.bind(('', 0))
             self.empfangs_port = temp_socket.getsockname()[1]  # Dynamisch einen freien Port       
-        self.port_label = ttk.Label(self.left_area, text=f"Empfangsport: {self.empfangs_port}")
+        
         # Wenn Discovery aktiv ist, speichere eigene Info für lokale Fallbacks
         if self.whoisport > 0:
             with open("peer_info.json", "w") as f:
                 import json
                 json.dump({"handle": self.handle, "ip": get_own_ip(), "port": self.empfangs_port}, f)
-        self.port_label.grid(row=4, column=2, columnspan=2, sticky='e', pady=(5, 0))
+       
        
         if self.whoisport > 0:
             self.discovery_thread = threading.Thread(
@@ -223,8 +212,6 @@ class ChatGUI:
         self.abwesen_button = ttk.Button(self.left_area, text="Abwesenheit: AUS", command=self.toggle_abwesenheit)
         self.abwesen_button.grid(row=4, column=0, columnspan=2, pady=(5, 0), sticky='we')
 
-        self.ip_label = ttk.Label(self.left_area, text=f"Deine IP: {get_own_ip()}")
-        self.ip_label.grid(row=3, column=2, columnspan=2, pady=(10, 0), sticky='e')
 
         self.status_label = ttk.Label(self.left_area, text="", anchor="w", font=("Segoe UI", 9, "italic"))
         self.status_label.grid(row=5, column=0, columnspan=4, sticky='w', pady=(5, 0))
