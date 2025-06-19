@@ -135,7 +135,10 @@ class ChatGUI:
         self.nutzer_listbox.pack(fill=tk.BOTH, expand=True)
         
 
-        self.handle = config["handle"] or simpledialog.askstring("Name", "Dein Benutzername:")       
+        self.handle = get_arg("--handle", 1, None, str) 
+        if not self.handle:
+            self.handle = simpledialog.askstring("Name", "Bitte gib deinen Benutzernamen ein:")
+        config["handle"] = self.handle # Sicherstellen, dass der Handle in der Konfiguration gespeichert wird
         #Zuerst einen freien Port suchen
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as temp_socket:
             temp_socket.bind(('', 0))
@@ -161,9 +164,15 @@ class ChatGUI:
         #Frühzeitig JOIN senden, damit andere Nutzer dich sehen können
         if self.whoisport > 0:
             time.sleep(1)  # Warten, damit Listener bereit sind
-            udp_send(f"JOIN {self.handle} {self.empfangs_port}", self.broadcast_ip, self.whoisport)  
+            join_msg = f"JOIN {self.handle} {self.empfangs_port}"
+            udp_send(join_msg, self.broadcast_ip, self.whoisport)
+
+            # Zusatz: sende JOIN direkt an localhost für lokalen Empfang
+            udp_send(join_msg, "127.0.0.1", self.whoisport)
+
             bekannte_nutzer[self.handle] = (get_own_ip(), self.empfangs_port)  # Füge dich selbst hinzu
             self.gui_queue.put((self.update_ziel_menu, ()))  # Aktualisiere die Nutzerliste
+
             # Zusätzlicher WHO-Send nur, wenn UDP erlaubt ist
         if self.whoisport > 0:
             time.sleep(1)  # Warten, damit andere Nutzer dich sehen können
@@ -229,24 +238,23 @@ class ChatGUI:
         teile = message.strip().split()   
         if not teile:
             return
+        
         cmd = teile[0]
         
         if cmd == "JOIN" and len(teile) == 3:
-
-
             handle = teile[1]
             port = int(teile[2])
             ip = addr[0]
-            
+        
             bekannte_nutzer[handle] = (ip, port)
             self.gui_queue.put((self.schreibe_chat, (f"[JOIN] Neuer Nutzer: {handle} @ {ip}:{port}",)))
             self.gui_queue.put((self.update_ziel_menu, ()))
-            
             self.gui_queue.put((self.schreibe_chat, (f"[INFO] Nutzerliste aktualisiert: {list(bekannte_nutzer.keys())}",)))
             
             # Antwort mit eigener Nutzertaabelle an den neuen CLient senden'
             antwort = "KNOWUSERS " + " ".join([f"{h} {ip} {port}" for h, (ip, port) in bekannte_nutzer.items()])
             udp_send(antwort, addr[0], self.whoisport)
+              
 
         elif cmd == "KNOWUSERS":
             eintraege = " ".join(teile[1:]).split(", ")
@@ -336,27 +344,32 @@ class ChatGUI:
             self.schreibe_chat(f"[INFO] Benutzername geändert zu {self.handle}")
 
     def update_ziel_menu(self):
+        neue_liste = list(sorted(bekannte_nutzer.keys()))
+        if neue_liste == getattr(self, "aktuelle_nutzer_liste", []):
+            return # Keine Änderung, also nichts tun
+        self.alte_nutzer_liste = neue_liste # Speichere die alte Liste für zukünftige Vergleiche
 
         print("[DEBUG] Zielmenü aktualisiert:", list(bekannte_nutzer.keys()))
+
         def gui_action():
             aktuelle_auswahl = self.ziel.get()
 
             self.nutzer_listbox.delete(0, 'end')
             for name in bekannte_nutzer.keys():
                 self.nutzer_listbox.insert(tk.END, name)
+
             # Aktualisiere die Nutzerliste im Listbox-Widget   
             self.ziel_menu.destroy()
             self.ziel_menu = ttk.OptionMenu(self.left_area, self.ziel, *bekannte_nutzer.keys())
             self.ziel_menu.grid(row=2, column=1, sticky='w', padx=(0, 5))
             
             # Wenn die aktuelle Auswahl nicht mehr existiert, setze sie auf "(niemand)"
-            if aktuelle_auswahl == "(niemand)" or aktuelle_auswahl not in bekannte_nutzer:
-                if bekannte_nutzer:
-                    neuer_empfaenger = list(bekannte_nutzer.keys())[-1]
-                    self.ziel.set(neuer_empfaenger)
+            if aktuelle_auswahl not in neue_liste:
+                if neue_liste:
+                    self.ziel.set(neue_liste[-1])
+                else:
+                    self.ziel.set("(niemand)")
            
-
-        aktuelle_auswahl = self.ziel.get()
         self.gui_queue.put((gui_action, (),))  # Füge die Aktion der Queue hinzu
 
     def toggle_abwesenheit(self):
