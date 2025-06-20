@@ -164,8 +164,7 @@ class ChatGUI:
         #Frühzeitig JOIN senden, damit andere Nutzer dich sehen können
         if self.whoisport > 0:
             time.sleep(1)  # Warten, damit Listener bereit sind
-            eigene_ip = get_own_ip()
-            join_msg = f"JOIN {self.handle} {eigene_ip} {self.empfangs_port}"
+            join_msg = f"JOIN {self.handle} {self.empfangs_port}"
             udp_send(join_msg, self.broadcast_ip, self.whoisport)
 
             # Zusatz: sende JOIN direkt an localhost für lokalen Empfang
@@ -242,10 +241,10 @@ class ChatGUI:
         
         cmd = teile[0]
         
-        if cmd == "JOIN" and len(teile) == 4:
+        if cmd == "JOIN" and len(teile) == 3:
             handle = teile[1]
-            ip = teile[2]
             port = int(teile[3])
+            ip = addr[0]
 
 
             # # Wenn Nutzer schon bekannt und IP+Port gleich sind überspringen 
