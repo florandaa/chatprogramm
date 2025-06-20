@@ -244,7 +244,7 @@ class ChatGUI:
         
         if cmd == "JOIN" and len(teile) == 3:
             handle = teile[1]
-            port = int(teile[3])
+            port = int(teile[2])
             ip = addr[0]
 
 
