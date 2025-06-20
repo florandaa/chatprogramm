@@ -2,7 +2,6 @@ import tkinter as tk
 from tkinter import scrolledtext, simpledialog, filedialog
 import threading 
 import time
-import json
 import socket
 import os
 import sys
@@ -74,6 +73,7 @@ class ChatGUI:
         # NEU: Lokale Peer-Datei einlesen bei whoisport == 0
         if self.whoisport == 0:
             try:
+                import json
                 with open("peer_info.json", "r") as f:
                     info = json.load(f)
                     bekannte_nutzer[info["handle"]] = (info["ip"], info["port"])
@@ -148,6 +148,7 @@ class ChatGUI:
         # Wenn Discovery aktiv ist, speichere eigene Info für lokale Fallbacks
         if self.whoisport > 0:
             with open("peer_info.json", "w") as f:
+                import json
                 json.dump({"handle": self.handle, "ip": get_own_ip(), "port": self.empfangs_port}, f)
        
        
