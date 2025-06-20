@@ -89,7 +89,7 @@ def get_own_ip():
     except:
         return "127.0.0.1"
     finally:
-        s.clos()
+        s.close()
 
 # === Verlauf speichern ===
 def speichere_verlauf():
