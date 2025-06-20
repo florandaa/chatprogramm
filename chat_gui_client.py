@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import scrolledtext, simpledialog, filedialog
 import threading 
 import time
+import json
 import socket
 import os
 import sys
@@ -73,7 +74,6 @@ class ChatGUI:
         # NEU: Lokale Peer-Datei einlesen bei whoisport == 0
         if self.whoisport == 0:
             try:
-                import json
                 with open("peer_info.json", "r") as f:
                     info = json.load(f)
                     bekannte_nutzer[info["handle"]] = (info["ip"], info["port"])
@@ -148,7 +148,6 @@ class ChatGUI:
         # Wenn Discovery aktiv ist, speichere eigene Info für lokale Fallbacks
         if self.whoisport > 0:
             with open("peer_info.json", "w") as f:
-                import json
                 json.dump({"handle": self.handle, "ip": get_own_ip(), "port": self.empfangs_port}, f)
        
        
@@ -165,7 +164,8 @@ class ChatGUI:
         #Frühzeitig JOIN senden, damit andere Nutzer dich sehen können
         if self.whoisport > 0:
             time.sleep(1)  # Warten, damit Listener bereit sind
-            join_msg = f"JOIN {self.handle} {self.empfangs_port}"
+            eigene_ip = get_own_ip()
+            join_msg = f"JOIN {self.handle} {eigene_ip} {self.empfangs_port}"
             udp_send(join_msg, self.broadcast_ip, self.whoisport)
 
             # Zusatz: sende JOIN direkt an localhost für lokalen Empfang
@@ -242,10 +242,11 @@ class ChatGUI:
         
         cmd = teile[0]
         
-        if cmd == "JOIN" and len(teile) == 3:
+        if cmd == "JOIN" and len(teile) == 4:
             handle = teile[1]
-            port = int(teile[2])
-            ip = addr[0]
+            ip = teile[2]
+            port = int(teile[3])
+
 
             # # Wenn Nutzer schon bekannt und IP+Port gleich sind überspringen 
             # if handle in bekannte_nutzer:
