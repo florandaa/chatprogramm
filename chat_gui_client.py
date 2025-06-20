@@ -166,10 +166,16 @@ class ChatGUI:
         if self.whoisport > 0:
             time.sleep(1)  # Warten, damit Listener bereit sind
             join_msg = f"JOIN {self.handle} {self.empfangs_port}"
-            udp_send(join_msg, self.broadcast_ip, self.whoisport)
-
-            # Zusatz: sende JOIN direkt an localhost für lokalen Empfang
-            udp_send(join_msg, "127.0.0.1", self.whoisport)
+            for _ in range(3):
+                udp_send(join_msg, self.broadcast_ip, self.whoisport)
+                # Zusatz: sende JOIN direkt an localhost für lokalen Empfang
+                udp_send(join_msg, "127.0.0.1", self.whoisport)
+                time.sleep(0.2)
+            udp_send("WHO", self.broadcast_ip, self.whoisport)
+            time.sleep(0.2)
+            udp_send("WHO", "127.0.0.1", self.whoisport)
+            # # Zusatz: sende JOIN direkt an localhost für lokalen Empfang
+            # udp_send(join_msg, "127.0.0.1", self.whoisport)
 
             bekannte_nutzer[self.handle] = (get_own_ip(), self.empfangs_port)  # Füge dich selbst hinzu
             self.gui_queue.put((self.update_ziel_menu, ()))  # Aktualisiere die Nutzerliste
@@ -270,7 +276,7 @@ class ChatGUI:
                     time.sleep(0.2)
             
             # Sende auch Knowusers mehrfach
-            antwort = "KNOWUSERS " + " ".join([f"{h} {ip} {port}" for h, (ip, port) in bekannte_nutzer.items()])
+            antwort = "KNOWUSERS " + " ".join([f"{h} {user_ip} {user_port}" for h, (user_ip, user_port) in bekannte_nutzer.items()])
             for _ in range(2):
                 udp_send(antwort, ip, self.whoisport)
                 time.sleep(0.2)
