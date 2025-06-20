@@ -81,12 +81,15 @@ def empfange_tcp(port):
 # === Lokale IP-Adresse ermitteln ===
 def get_own_ip():
     import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        # Nutze einen echten Zielhost, der im Netzwerk erreichbar ist
             s.connect(("8.8.8.8", 80))
             return s.getsockname()[0]
     except:
         return "127.0.0.1"
+    finally:
+        s.clos()
 
 # === Verlauf speichern ===
 def speichere_verlauf():
