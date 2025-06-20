@@ -235,6 +235,12 @@ class ChatGUI:
         self.aktualisiere_status()
 
 
+    ##
+    # @brief Verarbeitet eingehende UDP-Kommandos: JOIN, KNOWUSERS, LEAVE.
+    # @param message Die empfangene Nachricht.
+    # @param addr Tupel mit Absender-IP und Port.
+    ##
+
     def verarbeitete_udp_nachricht(self, message, addr):
         teile = message.strip().split()   
         if not teile:
@@ -253,6 +259,7 @@ class ChatGUI:
             #     if gespeicherte_ip == ip and gespeicherter_port == port:
             #         return
         
+            # Nutzer zur bekannten Liste hinzufügen
             bekannte_nutzer[handle] = (ip, port)
             self.gui_queue.put((self.schreibe_chat, (f"[JOIN] Neuer Nutzer: {handle} @ {ip}:{port}",)))
             self.gui_queue.put((self.update_ziel_menu, ()))
@@ -318,7 +325,9 @@ class ChatGUI:
                 self.gui_queue.put((self.schreibe_chat, (f"[LEAVE] Nutzer {handle} hat den Chat verlassen.",)))
                 self.gui_queue.put((self.update_ziel_menu, ()))
                 
-               
+    ##
+    # @brief Führt alle in der GUI-Queue gespeicherten Aktionen aus.
+    ##       
     def verarbeitete_gui_queue(self):
         try:
             while True:
@@ -327,6 +336,10 @@ class ChatGUI:
         except queue.Empty:
             pass
         self.master.after(100, self.verarbeitete_gui_queue)  # Weiterverarbeiten
+    ##
+    # @brief Gibt eine Chatnachricht im GUI-Fenster aus.
+    # @param text Der darzustellende Text.
+    ##
     def schreibe_chat(self, text):
         def gui_action(text):
             self.chatbox.configure(state='normal')
@@ -335,6 +348,11 @@ class ChatGUI:
             self.chatbox.yview(tk.END)
             chat_verlauf.append(text)
         self.gui_queue.put((gui_action, (text,)))  # Argument wird korrekt übergeben
+    
+    ##
+    # @brief Sendet eine Textnachricht an den ausgewählten Nutzer.
+    # @param event Optionales Event (z. B. <Return> bei Tasteneingabe).
+    ##
     def sende_nachricht(self, event=None):
         nachricht = self.entry.get().strip()
         if not nachricht:
@@ -352,7 +370,10 @@ class ChatGUI:
             self.entry.delete(0, tk.END)
         else:
             self.schreibe_chat(f"[FEHLER] Unbekannter Nutzer: {ziel}")
-
+    
+    ##
+    # @brief Öffnet einen Dateidialog und sendet das gewählte Bild an den Nutzer.
+    ##
     def bild_senden(self):
         pfad = filedialog.askopenfilename(
             title="Bild auswählen",
@@ -373,19 +394,28 @@ class ChatGUI:
 
         else:
             self.schreibe_chat(f"[FEHLER] Unbekannter Nutzer: {ziel}")
-
+    ##
+    # @brief Speichert den bisherigen Chatverlauf in einer Textdatei.
+    ##
     def speichere_verlauf(self):
         with open("chat_gui_verlauf.txt", "w", encoding="utf-8") as f:
             for zeile in chat_verlauf:
                 f.write(zeile + "\n")
         self.schreibe_chat("[INFO] Verlauf gespeichert.")
 
+    ##
+    # @brief Öffnet einen Dialog zur Änderung des eigenen Benutzernamens.
+    ##
     def name_aendern(self):
         neuer_name = simpledialog.askstring("Name ändern", "Neuer Benutzername:")
         if neuer_name:
             self.handle = neuer_name
             self.schreibe_chat(f"[INFO] Benutzername geändert zu {self.handle}")
 
+    ##
+    # @brief Aktualisiert das Auswahlmenü für bekannte Nutzer im GUI.
+    # @details Führt die GUI-Aktualisierung über eine Queue durch.
+    ##
     def update_ziel_menu(self):
         neue_liste = list(sorted(bekannte_nutzer.keys()))
         if neue_liste == getattr(self, "aktuelle_nutzer_liste", []):
@@ -415,6 +445,10 @@ class ChatGUI:
            
         self.gui_queue.put((gui_action, (),))  # Füge die Aktion der Queue hinzu
 
+    ##
+    # @brief Schaltet den Abwesenheitsmodus um.
+    # @details Zeigt im Chat an, ob der Nutzer als abwesend markiert ist.
+    ##
     def toggle_abwesenheit(self):
         self.abwesend = not self.abwesend
         status = "EIN" if self.abwesend else "AUS"
@@ -422,6 +456,9 @@ class ChatGUI:
         self.schreibe_chat(f"[INFO] Abwesenheitsmodus ist jetzt {status}.")
         self.aktualisiere_status()
 
+    ##
+    # @brief Beendet das Programm, speichert Verlauf und schließt TCP-Verbindung.
+    ##
     def beenden(self):
         self.running = False  # Stoppe TCP-Schleife
         if self.whoisport > 0:
@@ -434,13 +471,20 @@ class ChatGUI:
                 except Exception as e:
                     print(f"[WARNUNG] Fehler beim Schließen des TCP-Servers: {e}")
             self.master.destroy()
-
+    
+    ##
+    # @brief Aktualisiert die Statusanzeige der GUI regelmäßig
+    ##
     def aktualisiere_status(self):
         status_text = f"IP: {get_own_ip()} | Port: {self.empfangs_port} | "
         status_text += "Abwesend" if self.abwesend else "Aktiv"
         self.status_label.config(text=status_text)
         self.master.after(3000, self.aktualisiere_status)  # Aktualisiere alle 3 Sekunden
 
+    ##
+    # @brief Startet den TCP-Server für den Empfang von Text- oder Bildnachrichten.
+    # @details Erkennt automatisch Nachrichtenformat (Text/Bild), reagiert auf MSG mit optionalem Auto-Reply.
+    ##
     def empfange_tcp(self):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket = server
