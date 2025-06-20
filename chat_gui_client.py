@@ -253,7 +253,6 @@ class ChatGUI:
             port = int(teile[2])
             ip = addr[0]
 
-
             # # Wenn Nutzer schon bekannt und IP+Port gleich sind überspringen 
             # if handle in bekannte_nutzer:
             #     gespeicherte_ip, gespeicherter_port = bekannte_nutzer[handle]
@@ -514,5 +513,5 @@ class ChatGUI:
 if __name__ == "__main__":
     root = tk.Tk()
     gui = ChatGUI(root)
-    root.mainloop()    
+    root.mainloop()      
       
