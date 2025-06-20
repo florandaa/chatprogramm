@@ -144,6 +144,7 @@ class ChatGUI:
             temp_socket.bind(('', 0))
             self.empfangs_port = temp_socket.getsockname()[1]  # Dynamisch einen freien Port       
         
+
         # Wenn Discovery aktiv ist, speichere eigene Info für lokale Fallbacks
         if self.whoisport > 0:
             with open("peer_info.json", "w") as f:
@@ -178,10 +179,10 @@ class ChatGUI:
             time.sleep(1)  # Warten, damit andere Nutzer dich sehen können
             udp_send("WHO", self.broadcast_ip, self.whoisport)  # Sende WHO-Nachricht beim Start
  
-        # Als Notlösung: füge Sara manuell zu Ilirjons bekannte_nutzer hinzu
-        if self.whoisport == 0:
-            print("[INFO] Fallback: füge Sara lokal hinzu")
-            bekannte_nutzer["Sara"] = ("127.0.0.1", 51588)
+        # # Als Notlösung: füge Sara manuell zu Ilirjons bekannte_nutzer hinzu
+        # if self.whoisport == 0:
+        #     print("[INFO] Fallback: füge Sara lokal hinzu")
+        #     bekannte_nutzer["Sara"] = ("127.0.0.1", 51588)
         
 
         self.ziel = tk.StringVar(value="(niemand)")  # Standardwert für Empfänger
@@ -245,27 +246,69 @@ class ChatGUI:
             handle = teile[1]
             port = int(teile[2])
             ip = addr[0]
+
+            # # Wenn Nutzer schon bekannt und IP+Port gleich sind überspringen 
+            # if handle in bekannte_nutzer:
+            #     gespeicherte_ip, gespeicherter_port = bekannte_nutzer[handle]
+            #     if gespeicherte_ip == ip and gespeicherter_port == port:
+            #         return
         
             bekannte_nutzer[handle] = (ip, port)
             self.gui_queue.put((self.schreibe_chat, (f"[JOIN] Neuer Nutzer: {handle} @ {ip}:{port}",)))
             self.gui_queue.put((self.update_ziel_menu, ()))
             self.gui_queue.put((self.schreibe_chat, (f"[INFO] Nutzerliste aktualisiert: {list(bekannte_nutzer.keys())}",)))
             
-            # Antwort mit eigener Nutzertaabelle an den neuen CLient senden'
+            # # Antwort mit eigener Nutzertabelle an den neuen CLient senden'
+            # antwort = "KNOWUSERS " + " ".join([f"{h} {ip} {port}" for h, (ip, port) in bekannte_nutzer.items()])
+            # udp_send(antwort, ip, self.whoisport)
+
+            # Sende eigenen JOIN zurück, aber nur wenn der ander Name ungleich ich ist
+            if handle != self.handle:
+                join_msg = f"JOIN {self.handle} {self.empfangs_port}"
+                for _ in range(2): # 2x Zuverlässigkeit
+                    udp_send(join_msg, ip, self.whoisport)
+                    time.sleep(0.2)
+            
+            # Sende auch Knowusers mehrfach
             antwort = "KNOWUSERS " + " ".join([f"{h} {ip} {port}" for h, (ip, port) in bekannte_nutzer.items()])
-            udp_send(antwort, addr[0], self.whoisport)
-              
+            for _ in range(2):
+                udp_send(antwort, ip, self.whoisport)
+                time.sleep(0.2)
+           
+            # for _ in range(2):
+            #     udp_send(antwort, ip, self.whoisport)
+            #     time.sleep(0.15)
+
 
         elif cmd == "KNOWUSERS":
-            eintraege = " ".join(teile[1:]).split(", ")
-            for eintrag in eintraege:
+            daten = teile[1:]
+            print(f"[DEBUG] KNOWUSERS empfangen von {addr}: {daten}")
+
+            for i in range(0, len(daten), 3):
                 try:
-                    handle, ip, port = eintrag.split()
-                    bekannte_nutzer[handle] = (ip, int(port))
-                except:
+                    handle = daten[i]
+                    ip = daten[i + 1]
+                    port = int(daten[i +2])
+                    # # Nur hinzufügen wenn noch nicht vorhanden
+                    # if handle not in bekannte_nutzer:
+                    bekannte_nutzer[handle] = (ip, port)
+                except IndexError:
                     continue
+
+            self.gui_queue.put((self.update_ziel_menu,()))
             self.gui_queue.put((self.schreibe_chat, (f"[INFO] Nutzerliste aktualisiert: {list(bekannte_nutzer.keys())}",)))
-            self.gui_queue.put((self.update_ziel_menu, ()))
+
+            
+            
+            # eintraege = " ".join(teile[1:]).split(", ")
+            # for eintrag in eintraege:
+            #     try:
+            #         handle, ip, port = eintrag.split()
+            #         bekannte_nutzer[handle] = (ip, int(port))
+            #     except:
+            #         continue
+            # self.gui_queue.put((self.schreibe_chat, (f"[INFO] Nutzerliste aktualisiert: {list(bekannte_nutzer.keys())}",)))
+            # self.gui_queue.put((self.update_ziel_menu, ()))
             
 
         elif cmd == "LEAVE" and len(teile) == 2:
