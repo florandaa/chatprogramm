@@ -3,4 +3,4 @@ port = [5000, 5010]
 whoisport = 4000
 broadcast_ip = "255.255.255.255"  # oder z. B. "192.168.0.255" für alternative Netzwerke
 autoreply = "Abwesend"
-imagepath = "~/chat_images"
+imagepath = "./Bilder"
