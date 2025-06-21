@@ -4,6 +4,7 @@
 import argparse
 import threading
 import socket
+import re
 from network import tcp_send, udp_send, udp_listener, load_config
 
 chat_verlauf = []
@@ -115,7 +116,7 @@ def zeige_hilfe():
     print("/hilfe              - Diese Hilfe anzeigen")
     print("/name NEU           - Namen ändern")
     print("/nutzer             - Liste bekannter Nutzer")
-    print("/msg NAME TEXT      - Nachricht senden")
+    print("/msg NAME TEXT      - Nachricht senden (mit Anführungszeichen)")
     print("/verlauf            - Chatverlauf anzeigen")
     print("/ip                 - Eigene IP anzeigen")
     print("exit                - Beenden")
@@ -154,11 +155,11 @@ def start_cli():
                 print(f"- {name} @ {ip}:{port}")
 
         elif eingabe.startswith("/msg "):
-            teile = eingabe.split(" ", 2)
-            if len(teile) < 3:
-                print("Nutze: /msg NAME TEXT")
+            match = re.match(r"/msg (\S+) \"(.+?)\"", eingabe)
+            if not match:
+                print("Nachricht enthält ungültiges Format. Nutze: /msg NAME \"Text\"")
                 continue
-            ziel, text = teile[1], teile[2]
+            ziel, text = match.groups()
             if ziel in bekannte_nutzer:
                 ip, port = bekannte_nutzer[ziel]
                 tcp_send(f"MSG {benutzername} {text}", ip, port)
