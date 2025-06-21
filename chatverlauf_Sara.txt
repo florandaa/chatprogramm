@@ -4,3 +4,4 @@
 [JOIN] Sara @ 127.0.0.1:39059
 [JOIN] Sara @ 127.0.0.1:39059
 [JOIN] Sara @ 127.0.0.1:39059
+[LEAVE] Ilirjon hat verlassen.
