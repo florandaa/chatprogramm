@@ -31,20 +31,22 @@ def discovery_callback(msg, addr):
     teile = msg.split()
 
     if teile[0] == "KNOWNUSERS":
-        neue_liste = {}
         daten = teile[1:]
+        neue_nutzer = {}
         for i in range(0, len(daten), 3):
             try:
-                name = daten[i]
-                ip = daten[i + 1]
-                port = int(daten[i + 2])
-                neue_liste[name] = (ip, port)
+                name, ip, port = daten[i], daten[i+1], int(daten[i+2])
+                neue_nutzer[name] = (ip, port)
             except (IndexError, ValueError):
                 continue
 
-        if neue_liste != bekannte_nutzer:
-            bekannte_nutzer.clear()
-            bekannte_nutzer.update(neue_liste)
+        aktualisiert = False
+        for name, (ip, port) in neue_nutzer.items():
+            if name not in bekannte_nutzer:
+                bekannte_nutzer[name] = (ip, port)
+                aktualisiert = True
+
+        if aktualisiert:
             print("[INFO] Nutzerliste aktualisiert.")
 
     elif teile[0] == "JOIN" and len(teile) == 3:
@@ -201,4 +203,4 @@ if __name__ == "__main__":
         threading.Timer(10, wiederhole_who).start()
     wiederhole_who()
 
-    start_cli()
+    start_cli() 
