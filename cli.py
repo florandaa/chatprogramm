@@ -12,6 +12,7 @@ bekannte_nutzer = {}
 config = {}
 debug_mode = False
 
+# === CLI-Argumente ===
 def parse_args():
     parser = argparse.ArgumentParser(description="Chatprogramm starten")
     parser.add_argument("--handle", help="Benutzername")
@@ -22,44 +23,45 @@ def parse_args():
     parser.add_argument("--debug", action="store_true", help="Aktiviere Debug-Ausgaben")
     return parser.parse_args()
 
+# === Discovery-Callback ===
 def discovery_callback(msg, addr):
     if debug_mode:
         print(f"[DEBUG] Discovery empfangen: {msg} von {addr}")
 
     teile = msg.split()
+
     if teile[0] == "KNOWNUSERS":
         neue_liste = {}
         daten = teile[1:]
         for i in range(0, len(daten), 3):
             try:
-                name, ip, port = daten[i], daten[i+1], int(daten[i+2])
-                if name != benutzername:
-                    neue_liste[name] = (ip, port)
+                name = daten[i]
+                ip = daten[i + 1]
+                port = int(daten[i + 2])
+                neue_liste[name] = (ip, port)
             except (IndexError, ValueError):
                 continue
+
         if neue_liste != bekannte_nutzer:
             bekannte_nutzer.clear()
             bekannte_nutzer.update(neue_liste)
             print("[INFO] Nutzerliste aktualisiert.")
 
     elif teile[0] == "JOIN" and len(teile) == 3:
-        name, port = teile[1], int(teile[2])
-        if name != benutzername:
-            bekannte_nutzer[name] = (addr[0], port)
-            print(f"[INFO] Neuer Nutzer: {name} @ {addr[0]}:{port}")
+        h, port = teile[1], int(teile[2])
+        bekannte_nutzer[h] = (addr[0], port)
+        print(f"[INFO] Neuer Nutzer: {h} @ {addr[0]}:{port}")
 
-            daten = []
-            for h, (ip, p) in bekannte_nutzer.items():
-                daten.extend([h, ip, str(p)])
-            daten.extend([benutzername, eigene_ip, str(tcp_port)])
-            antwort = "KNOWNUSERS " + " ".join(daten)
-            udp_send(antwort, addr[0], config["whoisport"])
+        daten = []
+        for h, (ip, p) in bekannte_nutzer.items():
+            daten.extend([h, ip, str(p)])
+        antwort = "KNOWNUSERS " + " ".join(daten)
+        udp_send(antwort, addr[0], config["whoisport"])
 
     elif teile[0] == "WHO":
         daten = []
         for h, (ip, p) in bekannte_nutzer.items():
             daten.extend([h, ip, str(p)])
-        daten.extend([benutzername, eigene_ip, str(tcp_port)])
         antwort = "KNOWNUSERS " + " ".join(daten)
         udp_send(antwort, addr[0], config["whoisport"])
 
@@ -70,6 +72,7 @@ def discovery_callback(msg, addr):
             print(f"[INFO] {name} hat den Chat verlassen.")
             print("[INFO] Nutzerliste aktualisiert.")
 
+# === TCP-Nachrichten empfangen ===
 def empfange_tcp(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind(("0.0.0.0", port))
@@ -86,6 +89,7 @@ def empfange_tcp(port):
                 print(f"\n{sender}: {nachricht}\n{benutzername}: ", end="")
         conn.close()
 
+# === Lokale IP-Adresse ermitteln ===
 def get_own_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -96,12 +100,14 @@ def get_own_ip():
     finally:
         s.close()
 
+# === Verlauf speichern ===
 def speichere_verlauf():
     with open("chat_verlauf.txt", "w", encoding="utf-8") as datei:
         for nachricht in chat_verlauf:
             datei.write(nachricht + "\n")
     print("Chatverlauf gespeichert in 'chat_verlauf.txt'.")
 
+# === Hilfe anzeigen ===
 def zeige_hilfe():
     print("Verfügbare Befehle:")
     print("/hilfe              - Diese Hilfe anzeigen")
@@ -112,30 +118,39 @@ def zeige_hilfe():
     print("/ip                 - Eigene IP anzeigen")
     print("exit                - Beenden")
 
+# === Hauptfunktion CLI ===
 def start_cli():
     global benutzername
+
     print("Willkommen zum Chat. Tippe /hilfe für Hilfe.")
+
     while True:
         eingabe = input(f"{benutzername}: ").strip()
+
         if eingabe == "exit":
             speichere_verlauf()
             if "broadcast_ip" in config and "whoisport" in config:
                 udp_send(f"LEAVE {benutzername}", config["broadcast_ip"], config["whoisport"])
             print("Chat wird beendet.")
             break
+
         elif eingabe.startswith("/hilfe"):
             zeige_hilfe()
+
         elif eingabe.startswith("/name "):
             neuer_name = eingabe.split(" ", 1)[1]
             print(f"Name geändert: {benutzername} → {neuer_name}")
             benutzername = neuer_name
+
         elif eingabe == "/verlauf":
             for msg in chat_verlauf:
                 print(msg)
+
         elif eingabe == "/nutzer":
             print("Bekannte Nutzer:")
             for name, (ip, port) in bekannte_nutzer.items():
                 print(f"- {name} @ {ip}:{port}")
+
         elif eingabe.startswith("/msg "):
             teile = eingabe.split(" ", 2)
             if len(teile) < 3:
@@ -148,15 +163,19 @@ def start_cli():
                 chat_verlauf.append(f"(an {ziel}) {benutzername}: {text}")
             else:
                 print("Unbekannter Nutzer.")
+
         elif eingabe == "/ip":
             print("Deine IP:", get_own_ip())
+
         elif eingabe:
             print("Unbekannter Befehl. Tippe /hilfe.")
 
+# === Startpunkt ===
 if __name__ == "__main__":
     args = parse_args()
     debug_mode = args.debug
     config = load_config()
+
     if args.handle: config["handle"] = args.handle
     if args.port: config["port"] = args.port
     if args.autoreply: config["autoreply"] = args.autoreply
@@ -171,6 +190,7 @@ if __name__ == "__main__":
     eigene_ip = get_own_ip()
 
     bekannte_nutzer[benutzername] = (eigene_ip, tcp_port)
+
     udp_send(f"JOIN {benutzername} {tcp_port}", config["broadcast_ip"], whoisport)
 
     threading.Thread(target=udp_listener, args=(whoisport, discovery_callback), daemon=True).start()
