@@ -1,6 +1,6 @@
 # chat_gui_client.py
 import tkinter as tk
-from tkinter import scrolledtext
+from tkinter import scrolledtext, filedialog
 import tkinter.ttk as ttk
 import threading, socket, os, sys, time, queue
 from network import load_config, udp_send, tcp_send, udp_listener
@@ -52,8 +52,8 @@ class ChatGUI:
             threading.Thread(target=udp_listener, args=(self.whoisport, self.verarbeite_udp), daemon=True).start()
             for _ in range(2):
                 udp_send(f"JOIN {self.handle} {self.tcp_port}", self.broadcast_ip, self.whoisport)
-                time.sleep(0.2)
-            self.master.after(3000, self.wiederhole_who)
+                time.sleep(0.3)
+            udp_send("WHO", self.broadcast_ip, self.whoisport)
 
         self.build_gui()
         threading.Thread(target=self.tcp_empfang, daemon=True).start()
@@ -72,16 +72,19 @@ class ChatGUI:
         self.send_button = ttk.Button(self.master, text="Senden", command=self.sende_nachricht)
         self.send_button.grid(row=1, column=1)
 
+        self.image_button = ttk.Button(self.master, text="Bild senden", command=self.sende_bild)
+        self.image_button.grid(row=1, column=2)
+
         self.leave_button = ttk.Button(self.master, text="Verlassen", command=self.beenden)
-        self.leave_button.grid(row=1, column=2)
+        self.leave_button.grid(row=1, column=3)
 
         self.abwesend_var = tk.BooleanVar()
         self.abwesend_check = tk.Checkbutton(self.master, text="Abwesenheit", variable=self.abwesend_var, command=self.toggle_abwesenheit)
-        self.abwesend_check.grid(row=2, column=2, sticky="w", padx=10)
+        self.abwesend_check.grid(row=2, column=3, sticky="w", padx=10)
 
         self.ziel_var = tk.StringVar()
         self.ziel_menu = ttk.Combobox(self.master, textvariable=self.ziel_var, state="readonly")
-        self.ziel_menu.grid(row=2, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="we")
+        self.ziel_menu.grid(row=2, column=0, columnspan=3, padx=10, pady=(0, 10), sticky="we")
         self.ziel_menu['values'] = ["(alle)"]
         self.ziel_menu.set("(alle)")
 
@@ -104,6 +107,17 @@ class ChatGUI:
             tcp_send(f"MSG {self.handle} {text}", ip, port)
             self.chat_queue.put((lambda: self.schreibe_chat(f"(an {ziel}) {self.handle}: {text}"), ()))
 
+    def sende_bild(self):
+        pfad = filedialog.askopenfilename(filetypes=[("Bilder", "*.png;*.jpg;*.jpeg;*.gif")])
+        if not pfad: return
+        ziel = self.ziel_var.get()
+        with open(pfad, "rb") as f:
+            bilddaten = f.read()
+        if ziel in bekannte_nutzer:
+            ip, port = bekannte_nutzer[ziel]
+            tcp_send(f"IMG {self.handle} {os.path.basename(pfad)}".encode() + b"\n" + bilddaten, ip, port)
+            self.chat_queue.put((lambda: self.schreibe_chat(f"[Bild gesendet an {ziel}]: {pfad}"), ()))
+
     def verarbeite_udp(self, msg, addr):
         teile = msg.strip().split()
         if not teile: return
@@ -114,7 +128,6 @@ class ChatGUI:
             bekannte_nutzer[name] = (ip, port)
             self.chat_queue.put((lambda: self.schreibe_chat(f"[JOIN] {name} @ {ip}:{port}"), ()))
             self.chat_queue.put((lambda: self.update_online_nutzer(), ()))
-
             if name != self.handle:
                 udp_send(f"JOIN {self.handle} {self.tcp_port}", ip, self.whoisport)
 
@@ -127,11 +140,6 @@ class ChatGUI:
                 del bekannte_nutzer[name]
                 self.chat_queue.put((lambda: self.schreibe_chat(f"[LEAVE] {name} hat verlassen."), ()))
                 self.chat_queue.put((lambda: self.update_online_nutzer(), ()))
-
-    def wiederhole_who(self):
-        if self.running and len(bekannte_nutzer) <= 1:
-            udp_send("WHO", self.broadcast_ip, self.whoisport)
-            self.master.after(3000, self.wiederhole_who)
 
     def tcp_empfang(self):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -148,23 +156,31 @@ class ChatGUI:
                         if not packet: break
                         daten += packet
                     try:
-                        msg = daten.decode()
-                        self.chat_queue.put((lambda msg=msg: self.schreibe_chat(msg), ()))
-
-                        if msg.startswith("MSG"):
-                            teile = msg.split(maxsplit=2)
-                            sender = teile[1]
-                            if sender != self.handle and self.abwesend:
-                                now = time.time()
-                                last = self.letzte_autoreply.get(sender, 0)
-                                if now - last >= 30:
-                                    antwort = f"MSG {self.handle} {self.autoreply_text}"
-                                    if sender in bekannte_nutzer:
-                                        ip, port = bekannte_nutzer[sender]
-                                        tcp_send(antwort, ip, port)
-                                        self.letzte_autoreply[sender] = now
-                    except UnicodeDecodeError:
-                        pass
+                        if daten.startswith(b"IMG"):
+                            header, bild = daten.split(b"\n", 1)
+                            teile = header.decode().split()
+                            sender, dateiname = teile[1], teile[2]
+                            bildpfad = f"empfangen_{self.handle}_{dateiname}"
+                            with open(bildpfad, "wb") as f:
+                                f.write(bild)
+                            self.chat_queue.put((lambda: self.schreibe_chat(f"[Bild empfangen von {sender}]: {bildpfad}"), ()))
+                        else:
+                            msg = daten.decode()
+                            self.chat_queue.put((lambda msg=msg: self.schreibe_chat(msg), ()))
+                            if msg.startswith("MSG"):
+                                teile = msg.split(maxsplit=2)
+                                sender = teile[1]
+                                if sender != self.handle and self.abwesend:
+                                    now = time.time()
+                                    last = self.letzte_autoreply.get(sender, 0)
+                                    if now - last >= 30:
+                                        ip, port = bekannte_nutzer.get(sender, (None, None))
+                                        if ip and port:
+                                            antwort = f"MSG {self.handle} {self.autoreply_text}"
+                                            tcp_send(antwort, ip, port)
+                                            self.letzte_autoreply[sender] = now
+                    except Exception as e:
+                        print(f"[Fehler beim Verarbeiten von TCP]: {e}")
             except socket.timeout:
                 continue
 
