@@ -18,6 +18,7 @@ import os
 import sys
 import time
 import queue
+from network import load_config
 from PIL import Image, ImageTk
 from io import BytesIO
 
@@ -426,5 +427,25 @@ def start_gui(config):
         raise
 
 if __name__ == "__main__":
-    print("Dieses Modul sollte über main.py gestartet werden")
-    sys.exit(1)
+    import argparse
+    
+    # Argumentparser für direkte GUI-Nutzung
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--handle", required=True)
+    parser.add_argument("--port", nargs=2, type=int, required=True)
+    parser.add_argument("--whoisport", type=int, required=True)
+    args = parser.parse_args()
+    
+    # Konfiguration erstellen
+    config = {
+        "handle": args.handle,
+        "port": args.port,
+        "whoisport": args.whoisport,
+        "imagepath": "./received_images",
+        "autoreply": "Ich bin nicht verfügbar"
+    }
+    
+    # GUI starten
+    root = tk.Tk()
+    ChatGUI(root, config)
+    root.mainloop()
