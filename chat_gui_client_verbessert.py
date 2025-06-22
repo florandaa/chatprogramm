@@ -164,22 +164,28 @@ class ChatGUI:
         style.configure("Danger.TButton", background="#e74c3c", foreground="white")
 
     def start_network(self):
-        """@brief Startet alle Netzwerkkomponenten"""
-        # UDP Listener für Discovery
+        """Startet Netzwerkkomponenten – nutzt externen Discovery-Dienst"""
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self.udp_socket.bind(("0.0.0.0", self.whoisport))
         
-        threading.Thread(target=self.udp_listener, daemon=True).start()
-        
-        # TCP Server für Nachrichten
+        # NICHT BINDEN – Discovery läuft extern!
+        # self.udp_socket.bind(("0.0.0.0", self.whoisport))  ← RAUS!
+
+        # TCP Server
         self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.tcp_socket.bind(("0.0.0.0", self.tcp_port))
-        self.tcp_socket.listen()
+
+        try:
+            self.tcp_socket.bind(("0.0.0.0", self.tcp_port))
+        except OSError as e:
+            self.tcp_socket.bind(("0.0.0.0", 0))
+            self.tcp_port = self.tcp_socket.getsockname()[1]
+            self.queue_update(f"[System] Verwende Port {self.tcp_port}")
         
+        self.tcp_socket.listen()
         threading.Thread(target=self.tcp_listener, daemon=True).start()
+
 
     def udp_listener(self):
         """@brief Hört auf UDP-Nachrichten (JOIN, WHO, LEAVE)"""
@@ -277,6 +283,14 @@ class ChatGUI:
             message.encode(),
             ("255.255.255.255", self.whoisport)
         )
+
+        # Eigener Nutzer zur known_users-Liste hinzufügen 👇
+        try:
+            eigene_ip = socket.gethostbyname(socket.gethostname())
+            self.known_users[self.handle] = (eigene_ip, self.tcp_port)
+        except Exception as e:
+            self.queue_update(f"[Fehler] Eigene IP konnte nicht ermittelt werden: {e}")
+
 
     def send_who(self):
         """@brief Sendet WHO-Nachricht an alle"""
