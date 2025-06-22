@@ -58,3 +58,19 @@ def tcp_server(port, callback=None):
             callback(data)
         conn.close()
  
+def tcp_send(message, ip, port, binary=False):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(2.0)  # Timeout hinzugefügt
+    try:
+        sock.connect((ip, port))
+        if binary:
+            sock.sendall(message)
+        else:
+            sock.sendall(message.encode())
+        if debug_mode:
+            print(f"[DEBUG] TCP gesendet an {ip}:{port} → {message[:50] if not binary else '[BINÄRDATEN]'}")
+    except Exception as e:
+        print(f"[FEHLER] TCP: {e}")
+    finally:
+        sock.close()
+ 
