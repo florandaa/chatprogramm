@@ -4,18 +4,19 @@
 #
 # Dieses Skript lädt die Konfiguration, verarbeitet Kommandozeilenargumente, 
 # und bietet die Wahl zwischen CLI und GUI.
-# Discovery-Service MUSS separat laufen!
+# Hinweis: Der Discovery-Service MUSS separat laufen!
 ##
 
 import sys
 import socket
 import argparse
-import os  # Wichtig: os für Dateipfad-Operationen
+import os  # Für Dateipfad-Operationen
 import time
 from network import load_config, udp_send
 
 ##
-# @brief Verarbeitet Kommandozeilenargumente.
+# @brief Verarbeitet Kommandozeilenargumente für das Chatprogramm.
+# @return Parsed Argumente (Namespace)
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--handle", help="Dein Benutzername")
@@ -26,6 +27,8 @@ def parse_args():
 
 ##
 # @brief Prüft, ob der Discovery-Dienst bereits läuft (ob Port belegt ist).
+# @param port WHOIS-Port für Discovery
+# @return True falls Discovery läuft (Port belegt), sonst False
 def discovery_running(port):
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -35,10 +38,14 @@ def discovery_running(port):
     except:
         return True   # Port belegt -> Discovery läuft
 
+##
+# @brief Hauptfunktion: Programmstart, Konfiguration, UI-Auswahl
 def main():
     # Konfiguration laden
     config = load_config()
     args = parse_args()
+
+    # Überschreibe Konfig mit Kommandozeilenparametern
     if args.handle:
         config["handle"] = args.handle
     if args.port:
@@ -48,14 +55,17 @@ def main():
     if args.autoreply:
         config["autoreply"] = args.autoreply
 
-    # Discovery-Service prüfen
+    ##
+    # @section DiscoveryCheck Discovery-Service prüfen
+    # Discovery muss als separater Prozess laufen!
     if not discovery_running(config["whoisport"]):
         print("❗ Discovery-Service läuft NICHT. Bitte zuerst 'python3 discovery.py' in einem anderen Terminal starten!")
         sys.exit(1)
     else:
         print(f"Verbinde zu Discovery-Service auf Port {config['whoisport']} ...")
 
-    # JOIN und WHO automatisch senden (Pflicht für alle Clients)
+    ##
+    # @section InitialMessages Sende JOIN und WHO automatisch (Pflicht)
     def send_initial_messages():
         join_msg = f"JOIN {config['handle']} {config['port'][1]}"
         udp_send(join_msg, "255.255.255.255", config["whoisport"])
@@ -63,13 +73,15 @@ def main():
         udp_send("WHO", "255.255.255.255", config["whoisport"])
     send_initial_messages()
 
-    # User interface selection
+    ##
+    # @section UI Auswahl: CLI oder GUI
     while True:
         print("\n1) Command Line Interface (CLI)")
         print("2) Graphical User Interface (GUI)")
         choice = input("Please choose (1/2): ").strip()
         
         if choice == "1":
+            # Starte CLI
             from cli import start_cli
             start_cli(
                 handle=config["handle"],
@@ -79,7 +91,8 @@ def main():
             break
             
         elif choice == "2":
-            gui_file = "chat_gui_client_verbessert.py"  # Korrekter Dateiname
+            # Starte GUI (optional)
+            gui_file = "chat_gui_client_verbessert.py"
             if not os.path.exists(gui_file):
                 print(f"Error: GUI file '{gui_file}' not found in {os.getcwd()}!")
                 print("Please ensure the file exists or use CLI instead.")
@@ -100,5 +113,7 @@ def main():
         else:
             print("Invalid choice. Please enter 1 or 2.")
 
+##
+# @brief Einstiegspunkt des Programms.
 if __name__ == "__main__":
     main()
