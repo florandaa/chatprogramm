@@ -1,77 +1,133 @@
-# Chatprogramm 
-BSRN Projekt: Dies ist ein Peer-to-Peer (P2P) Chatprogramm, das im Rahmen des Moduls entwickelt wurde.
+# P2P Chatprogramm (BSRN Projekt SS2025)
 
-## Installation und Nutzung
+Dies ist ein Peer-to-Peer (P2P) Chatprogramm, das im Rahmen des Moduls *Betriebssysteme und Rechnernetze* entwickelt wurde. Es ermöglicht dezentrale Kommunikation im lokalen Netzwerk ohne zentrale Serverinstanz.
 
-1. Voraussetzung: Python 3.10 oder höher auf Linux-System  
-2. Repository klonen und in das Projektverzeichnis wechseln  
-3. Abhängigkeiten installieren (z.B. mit `pip install toml`)  
-4. Die Datei `config.toml` anpassen, falls nötig (Benutzername, Ports Speicherpfad für Bilder etc.)  
-5. Programm starten über:  
-   python3 main.py
+## 1. Installation und Nutzung
 
-## Features 
+### Voraussetzungen
+
+- Python 3.10 oder höher (getestet unter Linux und macOS)
+- `toml`-Modul: `pip install toml`
+
+### Schritte
+
+1. Repository klonen und in das Projektverzeichnis wechseln
+2. Datei `config.toml` anpassen (Handle, Ports, Autoreply, Speicherpfad für Bilder)
+3. Programm starten via:
+
+```bash
+python3 main.py
+```
+
+## 2. Features
+
 - Benutzerdefinierte Handles (Benutzernamen)
-- Lokale Discovery der anderen Nutzer über `WHO`, `JOIN`, `LEAVE`
-- P2P-Kommunikation zwischen Clients
-- Automatische Abwesenheitsnachrichten
-- Bildübertragung 
+- Lokale Discovery über `WHO`, `JOIN`, `LEAVE`
+- P2P-Kommunikation per TCP/UDP
+- Textnachrichten (MSG) und Bildübertragung (IMG)
+- Automatische Abwesenheitsnachrichten(Autoreply) 
 - Konfigurierbare Ports und Einstellungen per `.toml`-Datei
+- CLI-Schnittstelle + optionale GUI
 
-## Architektur
 
-Das Programm besteht aus drei Hauptprozessen:
+## 3. Architektur
 
-- **Benutzer-Schnittstelle (UI):** Kommandozeilen-Schnittstelle (CLI) zur Interaktion; optionale grafische Oberfläche (GUI)  
-- **Netzwerk-Kommunikation:** Umsetzung des Simple Local Chat Protocol (SLCP) für UDP- und TCP-Nachrichten  
-- **Discovery-Dienst:** Verwaltung aktiver Teilnehmer über Broadcast-Nachrichten
+Das System ist modular in **drei Prozesse** aufgeteilt:
 
-Diese Prozesse kommunizieren über IPC und nutzen eine gemeinsame TOML-Konfigurationsdatei zur Einstellung.
+- **Benutzer-Schnittstelle (CLI/GUI)** 
+  Eingabe von Nachrichten, Anzeige empfangener Inhalte, Konfiguration
+- **Netzwerk-Kommunikation** 
+  Versand und Empfang von Text- und Bildnachrichten über TCP/UDP
+- **Discovery-Dienst** 
+  Lokale Teilnehmererkennung und Verwaltung über Broadcast (JOIN, WHO, LEAVE)
 
-### Protokoll
+Die Prozesse kommunizieren über lokale UDP/TCP-Sockets. Einstellungen erfolgen zentral über eine TOML-Datei.
 
-Es wird das Simple Local Chat Protocol (SLCP) genutzt, das Textnachrichten und Bildübertragungen über UDP/TCP erlaubt. Wichtige Befehle sind JOIN, LEAVE, WHO, MSG und IMG.
+### Architekturdiagramm
 
-## 3. Designentscheidungen und Ansätze
+## 4. Protokoll (SLCP)
 
-- Verwendung von Python für schnelle Entwicklung und gute Bibliotheksunterstützung  
-- Trennung in drei Prozesse zur modularen Struktur und parallelen Verarbeitung  
-- IPC via Sockets für effiziente und flexible Kommunikation zwischen Prozessen  
-- Konfiguration über TOML-Datei für einfache Anpassbarkeit und Übersichtlichkeit  
-- Unterstützung von CLI und GUI für unterschiedliche Nutzerbedürfnisse
+Das Simple Local Chat Protocol (SLCP) definiert die Kommunikation:
 
-## 4. Kommunikationsabläufe
+| Befehl      | Beschreibung                                    |
+|-------------|-------------------------------------------------|
+| `JOIN`      | Teilnehmer meldet sich über Broadcast an        |
+| `LEAVE`     | Teilnehmer verlässt Chat, informiert alle       |
+| `WHO`       | Fragt aktive Teilnehmer per Broadcast ab        |
+| `KNOWNUSERS`| Antwort auf WHO mit Liste bekannter Nutzer      |
+| `MSG`       | Textnachricht an einzelnen Nutzer per TCP       |
+| `IMG`       | Bildnachricht mit anschließenden Binärdaten     |
 
-- **JOIN:** Nutzer tritt dem Chat bei, sendet Broadcast mit Handle und Port  
-- **LEAVE:** Nutzer verlässt den Chat, informiert Discovery-Dienst und andere Clients  
-- **WHO:** Broadcast-Anfrage zur Ermittlung aktiver Teilnehmer  
-- **KNOWUSERS:** Discovery-Dienst antwortet mit Liste bekannter Nutzer  
-- **MSG:** Versand von Textnachrichten direkt an einen Nutzer (Unicast)  
-- **IMG:** Versand von Bildnachrichten mit anschließenden Binärdaten
+**Beispiel:**  
+```
+JOIN Sara 5000
+MSG Ilirjon "Hallo, wie geht’s?"
+IMG Ilirjon 35463
+```
 
-## 5. Besondere Herausforderungen & Lösungen
 
-- **Mehrfachstart des Discovery-Dienstes:** Es wird sichergestellt, dass nur ein Discovery-Dienst läuft  
-- **Bildübertragung:** Synchronisation und genaue Größenangabe bei Binärdaten  
-- **Netzwerkfehler und Verbindungsabbrüche:** Fehlerbehandlung und automatische Wiederverbindung implementiert  
-- **Konfigurationsänderungen zur Laufzeit:** Modifikation der TOML-Datei über die CLI ermöglicht dynamische Anpassungen
+## 5. Designentscheidungen und Ansätze
 
-## 6. Bedienung und Konfiguration
+- **Python**: schnelle Entwicklung, gute Bibliotheksunterstützung
+- **Prozess-Trennung**: klare Aufgabenteilung, einfache Wartung
+- **Konfiguration via TOML**: zentral, lesbar, leicht anpassbar
+- **CLI + GUI**: flexibel für Nutzerbedürfnisse
+- **UDP Broadcast + TCP Unicast**: ideal für lokale Netze
 
-- Start des Programms via `python3 main.py` auf Linux-Systemen  
-- Konfigurationsdatei `config.toml` im Projektordner, mit Parametern wie `handle`, `port`, `whoisport`, `autoreply`, `imagepath`  
-- CLI-Befehle zur Kommunikation und Konfigurationsanpassung  
-- Optional: GUI für benutzerfreundliche Bedienung  
 
-## 7. Erweiterungsmöglichkeiten
+## 6. Kommunikationsabläufe
 
-- Erweiterung der GUI für bessere Nutzererfahrung  
-- Verschlüsselung der Nachrichten für mehr Sicherheit  
-- Unterstützung für Gruppen-Chats  
-- Erweiterung des Protokolls für weitere Medientypen  
-- Unterstützung weiterer Plattformen (Windows, macOS)
+- **JOIN**:  
+  Neue Clients melden sich über UDP-Broadcast beim Discovery-Dienst an  
+- **WHO/KNOWNUSERS**:  
+  Clients fordern bekannte Nutzer an, Discovery-Dienst antwortet  
+- **MSG/IMG**:  
+  Unicast-Nachrichten zwischen Clients (Text oder Bilddaten)
 
-## 8. Anhang
+
+## 7. Besondere Herausforderungen & Lösungen
+
+| Problem                             | Lösung                                         |
+|-------------------------------------|------------------------------------------------|
+| Mehrfachstart des Discovery-Diensts | Überprüfung und Vermeidung doppelter Instanzen |
+| Synchronisation bei Bildübertragung | Byte-genaue Übertragung gemäß `Size`           |
+| Netzwerkunterbrechungen             | Fehlerbehandlung und automatische Reaktion     |
+| Konfigurationsänderung zur Laufzeit | Anpassung über CLI möglich                     |
+
+
+## 8. Bedienung und Konfiguration
+
+- **Start**:
+  ```bash
+  python3 main.py
+  ```
+- **Konfiguration**: Datei `config.toml`, z. B.:
+  ```toml
+  handle = "Sara"
+  port = [5200, 5201]
+  whoisport = 4000
+  autoreply = "Ich bin gerade abwesend"
+  imagepath = "./Bilder"
+  ```
+
+- **CLI-Befehle**:
+  ```
+  /msg Bob "Hallo Bob"
+  /img Bob pfad/zum/bild.jpg
+  /nutzer
+  exit
+  ```
+
+
+## 9. Erweiterungsmöglichkeiten
+
+- Erweiterte GUI mit Drag&Drop für Bilder
+- Gruppen-Chats mit mehreren Teilnehmern
+- Ende-zu-Ende-Verschlüsselung
+- Integration eines Bildbetrachters
+- Plattformunabhängige Installer
+
+## 10. Anhang
 
 ### Diagramme
 
@@ -83,8 +139,14 @@ Es wird das Simple Local Chat Protocol (SLCP) genutzt, das Textnachrichten und B
 - Beispielhafte Darstellung der CLI und GUI  
 - Beispielhafte Anzeige empfangener Nachrichten und Bilder
 
----
 
-## Dokumentation
+## 11. Dokumentation
 
-Die ausführliche Quellcodedokumentation ist mit Doxygen generiert und im `/docs` Verzeichnis enthalten.
+Der Quellcode ist mit Doxygen-kompatiblen Kommentaren versehen.  
+Die generierte Dokumentation befindet sich im Ordner `/docs`.
+
+```bash
+doxygen Doxyfile
+```
+
+Ergebnis: `docs/html/index.html` im Browser öffnen.
