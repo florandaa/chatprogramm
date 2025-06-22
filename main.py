@@ -68,14 +68,10 @@ def main():
     if args.autoreply:
         config["autoreply"] = args.autoreply
  
-    # Discovery-Dienst starten wenn es nicht läutf
-    if not discovery_running(config["whoisport"]):
-        print("Starte Discovery-Dienst...")
-        subprocess.Popen([sys.executable, "discovery.py"])
-        time.sleep(1)  # Wait for discovery to start
+    print("[INFO] Stelle sicher, dass discovery.py separat gestartet wurde!")
  
     # Initiale Nchrichten (JOIN, WHO) senden
-    join_msg = f"JOIN {config['handle']} {config['port'][1]}"
+    join_msg = f"JOIN {config['handle']} {config['port'][1]} 0"
     udp_send(join_msg, "255.255.255.255", config["whoisport"])
     time.sleep(0.5)
     udp_send("WHO", "255.255.255.255", config["whoisport"])

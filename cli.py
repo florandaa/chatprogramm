@@ -4,6 +4,8 @@ import time
 import re
 import sys
 from datetime import datetime
+from network import get_own_ip
+
 
 # Farbcodes für die Konsolenausgabe
 class colors:
@@ -47,10 +49,24 @@ def empfange_tcp(port):
         print_message(addr[0], data)
         conn.close()
 
-def udp_empfaenger(whoisport):
+def udp_empfaenger(whoisport, handle):
+    global bekannte_nutzer
+    print_system(f"UDP-Empfänger gestartet mit handle={handle} auf Port {whoisport}")
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(("0.0.0.0", whoisport))
+    try:
+        sock.bind(("0.0.0.0", whoisport))
+    except OSError:
+        print_error(f"UDP-Port {whoisport} belegt – Discovery-Dienst läuft wahrscheinlich schon.")
+        print_system("Versuche stattdessen auf zufälligem freien Port zu lauschen...")
+        try:
+            sock.bind(("0.0.0.0", 0))  # Betriebssystem gibt freien Port
+            print_system(f"UDP-Empfang läuft auf Port {sock.getsockname()[1]}")
+        except Exception as e:
+            print_error(f"Konnte keinen alternativen Port öffnen: {e}")
+            return
+
+
     
     while True:
         try:
@@ -61,22 +77,28 @@ def udp_empfaenger(whoisport):
                 neue_nutzer = {}
                 teile = msg.split()[1:]
                 for i in range(0, len(teile), 3):
-                    if i+2 < len(teile):
-                        name, ip, port = teile[i], teile[i+1], int(teile[i+2])
-                        neue_nutzer[name] = (ip, port)
+                    if i + 2 < len(teile):
+                        name, ip, port = teile[i], teile[i + 1], int(teile[i + 2])
+                        if name != handle:  # <== Eigener Nutzer wird nicht gespeichert
+                            neue_nutzer[name] = (ip, port)
                 bekannte_nutzer.update(neue_nutzer)
-                print_system(f"Nutzerliste aktualisiert ({len(bekannte_nutzer)} online)")
-                
+
+                if neue_nutzer:
+                    print_system(f"Nutzerliste aktualisiert: {', '.join(neue_nutzer.keys())}")
+                else:
+                    print_system("Keine neuen Nutzer empfangen.")
+
         except Exception as e:
             print_error(f"UDP Fehler: {e}")
 
 def start_cli(handle, port, whoisport):
     # Listener starten
     threading.Thread(target=empfange_tcp, args=(port,), daemon=True).start()
-    threading.Thread(target=udp_empfaenger, args=(whoisport,), daemon=True).start()
+    threading.Thread(target=udp_empfaenger, args=(whoisport, handle), daemon=True).start()
     
     # JOIN senden
-    join_msg = f"JOIN {handle} {port}"
+    eigene_ip = get_own_ip()
+    join_msg = f"JOIN {handle} {eigene_ip} {port}"
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         sock.sendto(join_msg.encode(), (IP_BROADCAST, whoisport))
@@ -134,6 +156,7 @@ def start_cli(handle, port, whoisport):
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
             sock.sendto(f"LEAVE {handle}".encode(), (IP_BROADCAST, whoisport))
         print("\nChat beendet")
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
