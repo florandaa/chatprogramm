@@ -135,6 +135,8 @@ IMG Ilirjon 35463
 
 - Architekturdiagramm der Prozess-Kommunikation  
 - Ablaufdiagramme für JOIN, WHO, MSG etc.
+![Gesamt-Ablaufdiagramm](docs/Ablaufdiagramm.png)
+
 
 ### Screenshots
 
