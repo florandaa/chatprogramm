@@ -3,60 +3,42 @@
 # @brief Einstiegspunkt des Chatprogramms.
 #
 # Dieses Skript lädt die Konfiguration, verarbeitet Kommandozeilenargumente, 
-# startet gff. den Discovery-Dienst und bietet die Wahl zwischen CLI und GUI.
-#
+# und bietet die Wahl zwischen CLI und GUI.
+# Discovery-Service MUSS separat laufen!
+##
 
 import sys
 import socket
-import subprocess
-import threading
-import time
 import argparse
 import os  # Wichtig: os für Dateipfad-Operationen
-from network import load_config, udp_send, udp_listener, get_own_ip
+import time
+from network import load_config, udp_send
 
 ##
 # @brief Verarbeitet Kommandozeilenargumente.
-#
-# Diese Funktion liest CLI-Argumente wie Handle, Ports, WHOIS-Port und optionale Autoreply-Nachricht.
-#
-# @return args: Ein Namespace-Objekt mit den Argumentwerten.
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--handle", help="Dein Benutzername")
-    parser.add_argument("--port", nargs=2, type=int,
-                       help="UDP- und TCP-Ports (z. B. 5000 5001)")
-    parser.add_argument("--whoisport", type=int,
-                       help="Discovery-Dienst-Port")
+    parser.add_argument("--port", nargs=2, type=int, help="UDP- und TCP-Ports (z. B. 5000 5001)")
+    parser.add_argument("--whoisport", type=int, help="Discovery-Dienst-Port")
     parser.add_argument("--autoreply", help="Automatische Antwortnachricht")
     return parser.parse_args()
+
 ##
-# @brief Prüft, ob der Discovery-Dienst bereits läuft.
-#
-# Diese Funktion versucht, den WHOIS-Port zu binden. Falls das nicht möglich ist,
-# läuft vermutlich bereits ein Discovery-Prozess.
-# 
-# @param port WHOIS-Port, auf dem der Discovery-Dienst laufen soll.
-# @return True, wenn der Dienst schon läuft, sonst False. 
+# @brief Prüft, ob der Discovery-Dienst bereits läuft (ob Port belegt ist).
 def discovery_running(port):
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.bind(("", port))
         s.close()
-        return False
+        return False  # Port frei -> Discovery läuft NICHT
     except:
-        return True
+        return True   # Port belegt -> Discovery läuft
 
 def main():
-    # Zuerst Konfiguration aus Datei laden
+    # Konfiguration laden
     config = load_config()
-    # Argumente parsen (optional)
     args = parse_args()
-   
-     # Argumente parsen (optional)
-    args = parse_args()
-    
-    # Kommandozeilenargumente überschreiben die Konfiguration
     if args.handle:
         config["handle"] = args.handle
     if args.port:
@@ -66,20 +48,19 @@ def main():
     if args.autoreply:
         config["autoreply"] = args.autoreply
 
-
-    # Start discovery service if not running
+    # Discovery-Service prüfen
     if not discovery_running(config["whoisport"]):
-        print("Starting discovery service...")
-        subprocess.Popen([sys.executable, "discovery.py"])
-        time.sleep(1)  # Ensure discovery is ready
+        print("❗ Discovery-Service läuft NICHT. Bitte zuerst 'python3 discovery.py' in einem anderen Terminal starten!")
+        sys.exit(1)
+    else:
+        print(f"Verbinde zu Discovery-Service auf Port {config['whoisport']} ...")
 
-    # Send initial messages
+    # JOIN und WHO automatisch senden (Pflicht für alle Clients)
     def send_initial_messages():
         join_msg = f"JOIN {config['handle']} {config['port'][1]}"
         udp_send(join_msg, "255.255.255.255", config["whoisport"])
         time.sleep(0.5)
         udp_send("WHO", "255.255.255.255", config["whoisport"])
-
     send_initial_messages()
 
     # User interface selection
@@ -103,8 +84,8 @@ def main():
                 print(f"Error: GUI file '{gui_file}' not found in {os.getcwd()}!")
                 print("Please ensure the file exists or use CLI instead.")
                 continue
-                
             try:
+                import subprocess
                 subprocess.Popen([
                     sys.executable,
                     gui_file,
@@ -116,7 +97,6 @@ def main():
             except Exception as e:
                 print(f"Failed to start GUI: {str(e)}")
                 continue
-                
         else:
             print("Invalid choice. Please enter 1 or 2.")
 
