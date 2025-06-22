@@ -230,6 +230,8 @@ class ChatGUI:
                 ).start()
             except Exception as e:
                 self.queue_update(f"[Fehler] TCP: {str(e)}")
+    
+    
 
     def handle_tcp_connection(self, conn, addr):
         """@brief Verarbeitet eine einzelne TCP-Verbindung"""
