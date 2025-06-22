@@ -45,7 +45,7 @@ Die Prozesse kommunizieren über lokale UDP/TCP-Sockets. Einstellungen erfolgen 
 
 ### Architekturdiagramm
 
-![Architektur](media/Architektur.png)
+![Architektur](docs/Architektur.png)
 
 ## 4. Protokoll (SLCP)
 
