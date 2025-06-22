@@ -43,3 +43,18 @@ def udp_send(message, ip, port):
     finally:
         sock.close()
  
+def tcp_server(port, callback=None):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("0.0.0.0", port))
+    sock.listen()
+    print(f"[TCP] Server auf Port {port}")
+   
+    while True:
+        conn, addr = sock.accept()
+        data = conn.recv(1024).decode("utf-8")
+        if debug_mode:
+            print(f"[DEBUG] TCP empfangen von {addr}: {data}")
+        if callback:
+            callback(data)
+        conn.close()
+ 
