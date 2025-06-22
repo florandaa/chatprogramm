@@ -45,6 +45,8 @@ Die Prozesse kommunizieren über lokale UDP/TCP-Sockets. Einstellungen erfolgen 
 
 ### Architekturdiagramm
 
+![Architektur](media/Architektur.png)
+
 ## 4. Protokoll (SLCP)
 
 Das Simple Local Chat Protocol (SLCP) definiert die Kommunikation:
