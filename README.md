@@ -134,17 +134,20 @@ IMG Ilirjon 35463
 
 ### Diagramme
 
-- Architekturdiagramm der Prozess-Kommunikation  
 - Ablaufdiagramme für JOIN, WHO, MSG etc.
-
 
 ![Gesamt-Ablaufdiagramm](docs/Ablaufdiagramm.png)
 
 
 ### Screenshots
 
-- Beispielhafte Darstellung der CLI und GUI  
-- Beispielhafte Anzeige empfangener Nachrichten und Bilder
+- Beispielhafte Darstellung der GUI  
+
+![Dunkelmodus](docs/Bildschirmfoto%202025-06-22%20um%2023.04.27.png)
+
+- Beispielhafte Anzeige empfangener Nachrichten 
+
+![Nachrichten](docs/nachrichten.png)
 
 
 ## 11. Dokumentation
