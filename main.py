@@ -1,4 +1,11 @@
-# main.py - Vollständig korrigierte Version
+##
+# @file main.py
+# @brief Einstiegspunkt des Chatprogramms.
+#
+# Dieses Skript lädt die Konfiguration, verarbeitet Kommandozeilenargumente, 
+# startet gff. den Discovery-Dienst und bietet die Wahl zwischen CLI und GUI.
+#
+
 import sys
 import socket
 import subprocess
@@ -6,7 +13,13 @@ import threading
 import time
 import argparse
 from network import load_config, udp_send, udp_listener, get_own_ip
- 
+
+##
+# @brief Verarbeitet Kommandozeilenargumente.
+#
+# Diese Funktion liest CLI-Argumente wie Handle, Ports, WHOIS-Port und optionale Autoreply-Nachricht.
+#
+# @return args: Ein Namespace-Objekt mit den Argumentwerten.
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--handle", required=True, help="Dein Benutzername")
@@ -16,7 +29,15 @@ def parse_args():
                        help="Discovery-Dienst-Port")
     parser.add_argument("--autoreply", help="Automatische Antwortnachricht")
     return parser.parse_args()
- 
+
+##
+# @brief Prüft, ob der Discovery-Dienst bereits läuft.
+#
+# Diese Funktion versucht, den WHOIS-Port zu binden. Falls das nicht möglich ist,
+# läuft vermutlich bereits ein Discovery-Prozess.
+# 
+# @param port WHOIS-Port, auf dem der Discovery-Dienst laufen soll.
+# @return True, wenn der Dienst schon läuft, sonst False. 
 def discovery_running(port):
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -26,30 +47,40 @@ def discovery_running(port):
     except:
         return True
  
+##
+# @brief Hauptfunktion zum Starten des Programms.
+#
+# Diese Funktion führt die Konfigurations- und Startlogik aus:
+# - Argumente lesen
+# - Konfiguration mergen 
+# - Discovery Dienst starten (falls nötig)
+# - Auswahl zwischen CLI oder GUI starten
+#
+# @return None
 def main():
     args = parse_args()
     config = load_config()
    
-    # Merge args with config
+    # Argumente mit Konfigurationsdatei zusammenführen
     config["handle"] = args.handle
     config["port"] = args.port
     config["whoisport"] = args.whoisport
     if args.autoreply:
         config["autoreply"] = args.autoreply
  
-    # Start discovery if not running
+    # Discovery-Dienst starten wenn es nicht läutf
     if not discovery_running(config["whoisport"]):
         print("Starte Discovery-Dienst...")
         subprocess.Popen([sys.executable, "discovery.py"])
         time.sleep(1)  # Wait for discovery to start
  
-    # Send initial messages
+    # Initiale Nchrichten (JOIN, WHO) senden
     join_msg = f"JOIN {config['handle']} {config['port'][1]}"
     udp_send(join_msg, "255.255.255.255", config["whoisport"])
     time.sleep(0.5)
     udp_send("WHO", "255.255.255.255", config["whoisport"])
  
-    # Start CLI/GUI
+    # Start der Benutzeroberfläche (CLI/GUI)
     print("1) CLI\n2) GUI")
     choice = input("> ").strip()
    
@@ -69,5 +100,6 @@ def main():
             "--whoisport", str(config["whoisport"])
         ])
  
+# Einstiegspunkt
 if __name__ == "__main__":
     main()
