@@ -143,7 +143,7 @@ IMG Ilirjon 35463
 
 - Beispielhafte Darstellung der GUI  
 
-![Dunkelmodus](docs/Bildschirmfoto%202025-06-22%20um%2023.04.27.png)
+![Dunkelmodus](docs/dunkelmodus.png)
 
 - Beispielhafte Anzeige empfangener Nachrichten 
 
