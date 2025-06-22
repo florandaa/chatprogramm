@@ -8,6 +8,7 @@ Dies ist ein Peer-to-Peer (P2P) Chatprogramm, das im Rahmen des Moduls *Betriebs
 
 - Python 3.10 oder höher (getestet unter Linux und macOS)
 - `toml`-Modul: `pip install toml`
+- pip install toml pillow
 
 ### Schritte
 
