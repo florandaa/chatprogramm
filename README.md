@@ -137,7 +137,7 @@ IMG Ilirjon 35463
 - Ablaufdiagramme für JOIN, WHO, MSG etc.
 
 
-![Gesamt-Ablaufdiagramm](docs/Ablaufdiagramm2.png)
+![Gesamt-Ablaufdiagramm](docs/Ablaufdiagramm.png)
 
 
 ### Screenshots
