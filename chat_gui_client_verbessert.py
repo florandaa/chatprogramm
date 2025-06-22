@@ -1,5 +1,11 @@
+##
 # @file chat_gui_client_final.py
-# @brief Finale Version der Chat-GUI (funktionsfähig, Discovery-konform!)
+# @brief Finale Version der Chat-GUI mit Discovery-Integration, Bildversand, Dark Mode und Nutzerverwaltung.
+#
+# Dieses Modul implementiert die komplette grafische Chat-Oberfläche
+# inklusive TCP/UDP-Kommunikation, Nutzer-Discovery über Broadcast,
+# automatische Nutzerliste und Bildübertragung.
+##
 
 import tkinter as tk
 from tkinter import scrolledtext, filedialog, messagebox
@@ -20,19 +26,33 @@ BUTTON_COLOR = "#4a90e2"
 FONT = ("Helvetica", 10)
 MAX_MSG_LENGTH = 512
 
+##
+# @class ChatGUI
+# @brief Hauptklasse für die grafische Chat-Oberfläche (GUI).
+#
+# Diese Klasse initialisiert alle GUI-Komponenten, kümmert sich um
+# Netzwerkverbindungen (TCP und UDP), verarbeitet Nutzer-Discovery,
+# aktualisiert die Nutzerliste, empfängt und sendet Nachrichten und Bilder.
+#
 class ChatGUI:
+    ##
+    # @brief Konstruktor der ChatGUI.
+    # @param master Das Tkinter-Hauptfenster.
+    # @param config Konfigurations-Objekt (Benutzername, Ports, etc.).
+    #
     def __init__(self, master, config):
         self.master = master
         self.config = config
         self.running = True
 
         self.handle = config["handle"]
-        self.udp_port = config["port"][0]    # IGNORIERT (UDP-Discovery-Port verwaltet Discovery selbst)
+        self.udp_port = config["port"][0]    # (Wird nicht direkt genutzt)
         self.tcp_port = config["port"][1]
         self.whoisport = config["whoisport"]
         self.imagepath = config.get("imagepath", "./received_images")
-        self.autoreply = config.get("autoreply", "Ich bin nicht verf\u00fcgbar")
+        self.autoreply = config.get("autoreply", "Ich bin nicht verfügbar")
 
+        # Dictionaries für bekannte Nutzer, Autoreplies und Queue für Thread-sicheres Updaten der GUI
         self.known_users = {}
         self.chat_queue = queue.Queue()
         self.last_autoreply = {}
@@ -42,10 +62,10 @@ class ChatGUI:
 
         self.setup_gui()
 
-        # ==== KORREKTER UDP-PORT: Der Client nutzt EIGENEN Port ====
+        # UDP-Socket: Bind auf zufälligem Port (eigener Listener für Discovery, keine Kollision!)
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self.udp_socket.bind(("", 0))  # OS sucht freien Port!
+        self.udp_socket.bind(("", 0))
         self.my_udp_port = self.udp_socket.getsockname()[1]
 
         self.start_network()
@@ -55,11 +75,15 @@ class ChatGUI:
 
         self.master.after(100, self.process_queue)
 
+    ##
+    # @brief Initialisiert alle grafischen Komponenten (Fenster, Buttons, Listen etc.).
+    #
     def setup_gui(self):
         self.dark_mode = tk.BooleanVar(value=False)
         self.master.title(f"ChA12Room - {self.handle}")
         self.master.protocol("WM_DELETE_WINDOW", self.on_close)
 
+        # Menü für Dark Mode
         menubar = tk.Menu(self.master)
         view_menu = tk.Menu(menubar, tearoff=0)
         view_menu.add_checkbutton(label="Dunkelmodus", variable=self.dark_mode, command=self.toggle_theme)
@@ -69,23 +93,28 @@ class ChatGUI:
         main_frame = ttk.Frame(self.master, padding="10")
         main_frame.grid(row=0, column=0, sticky="nsew")
 
+        # Chat-Anzeige
         self.chat_display = scrolledtext.ScrolledText(main_frame, width=60, height=20, wrap=tk.WORD, bg=TEXT_BG, font=FONT)
         self.chat_display.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
         self.chat_display.config(state=tk.DISABLED)
 
+        # Nutzerliste
         self.user_listbox = tk.Listbox(main_frame, height=20, width=20, bg=TEXT_BG, font=FONT)
         self.user_listbox.grid(row=0, column=2, padx=5, pady=5, sticky="ns")
 
+        # Eingabefeld
         self.message_entry = ttk.Entry(main_frame, width=50, font=FONT)
         self.message_entry.grid(row=1, column=0, padx=5, pady=5, sticky="we")
         self.message_entry.bind("<Return>", self.send_message)
 
+        # Empfänger-Auswahl (Dropdown)
         self.recipient_var = tk.StringVar()
         self.recipient_menu = ttk.Combobox(main_frame, textvariable=self.recipient_var, state="readonly", width=15, font=FONT)
         self.recipient_menu.grid(row=1, column=1, padx=5, pady=5, sticky="we")
         self.recipient_menu["values"] = ["(Broadcast)"]
         self.recipient_menu.current(0)
 
+        # Button-Leiste
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=2, column=0, columnspan=3, pady=5, sticky="we")
 
@@ -102,11 +131,13 @@ class ChatGUI:
         self.leave_button = ttk.Button(button_frame, text="Verlassen", command=self.on_close, style="Danger.TButton")
         self.leave_button.pack(side=tk.RIGHT, padx=2)
 
+        # Layout für Fenster-Resizing
         self.master.columnconfigure(0, weight=1)
         self.master.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
         main_frame.rowconfigure(0, weight=1)
 
+        # Button-Styles für Dark/Light
         style = ttk.Style()
         style.theme_use("default")
         style.layout("Accent.TButton", style.layout("TButton"))
@@ -114,6 +145,9 @@ class ChatGUI:
         style.layout("Danger.TButton", style.layout("TButton"))
         style.configure("Danger.TButton", background="#e74c3c", foreground="white", font=FONT)
 
+    ##
+    # @brief Startet alle Netzwerk-Listener (TCP für Nachrichten/Bilder, UDP für Discovery).
+    #
     def start_network(self):
         # TCP-Server (für MSG/IMG)
         self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -121,6 +155,7 @@ class ChatGUI:
         try:
             self.tcp_socket.bind(("0.0.0.0", self.tcp_port))
         except OSError:
+            # Falls Port schon belegt: Auf beliebigen Port binden und Info anzeigen
             self.tcp_socket.bind(("0.0.0.0", 0))
             self.tcp_port = self.tcp_socket.getsockname()[1]
             self.queue_update(f"[Info] TCP-Port automatisch gewechselt auf {self.tcp_port}")
@@ -129,6 +164,9 @@ class ChatGUI:
         threading.Thread(target=self.tcp_listener, daemon=True).start()
         threading.Thread(target=self.udp_knownusers_listener, daemon=True).start()
 
+    ##
+    # @brief Wartet auf eingehende TCP-Verbindungen (Nachrichten/Bilder von anderen Nutzern).
+    #
     def tcp_listener(self):
         while self.running:
             try:
@@ -137,6 +175,11 @@ class ChatGUI:
             except:
                 pass
 
+    ##
+    # @brief Verarbeitet eine TCP-Verbindung (Textnachricht oder Bilddaten).
+    # @param conn Die Socket-Verbindung.
+    # @param addr Die Absenderadresse.
+    #
     def handle_tcp_connection(self, conn, addr):
         try:
             data = conn.recv(1024)
@@ -145,6 +188,7 @@ class ChatGUI:
                 if len(parts) == 3:
                     _, sender, text = parts
                     self.queue_update(f"{sender}: {text}")
+                    # Autoreply bei Abwesenheit
                     if self.abwesend_var.get() and sender != self.handle:
                         now = time.time()
                         if now - self.last_autoreply.get(sender, 0) > 30:
@@ -166,13 +210,22 @@ class ChatGUI:
         finally:
             conn.close()
 
+    ##
+    # @brief Sendet eine JOIN-Nachricht an den Discovery-Service.
+    #
     def send_join(self):
         message = f"JOIN {self.handle} {self.tcp_port} {self.my_udp_port}"
         self.udp_socket.sendto(message.encode(), ("255.255.255.255", self.whoisport))
 
+    ##
+    # @brief Fordert die aktuelle Nutzerliste vom Discovery-Service an.
+    #
     def send_who(self):
         self.udp_socket.sendto(b"WHO", ("255.255.255.255", self.whoisport))
 
+    ##
+    # @brief Sammelt Eingabetext und verschickt ihn an den/die Empfänger.
+    #
     def send_message(self, event=None):
         text = self.message_entry.get().strip()
         if not text or len(text.encode("utf-8")) > MAX_MSG_LENGTH:
@@ -189,6 +242,11 @@ class ChatGUI:
             self.send_message_to(recipient, text)
             self.queue_update(f"(An {recipient}) {self.handle}: {text}")
 
+    ##
+    # @brief Versendet eine Textnachricht via TCP an einen Nutzer.
+    # @param recipient Empfänger-Name.
+    # @param text Die Nachricht.
+    #
     def send_message_to(self, recipient, text):
         if recipient in self.known_users:
             ip, port = self.known_users[recipient]
@@ -200,16 +258,19 @@ class ChatGUI:
             except:
                 self.queue_update(f"[Fehler] Nachricht an {recipient} fehlgeschlagen")
 
+    ##
+    # @brief Öffnet einen Dialog zum Bildauswählen und versendet das Bild an einen Nutzer.
+    #
     def send_image_dialog(self):
-        filepath = filedialog.askopenfilename(title="Bild ausw\u00e4hlen", filetypes=[("PNG", "*.png"), ("JPEG", "*.jpg *.jpeg")])
+        filepath = filedialog.askopenfilename(title="Bild auswählen", filetypes=[("PNG", "*.png"), ("JPEG", "*.jpg *.jpeg")])
         if not filepath:
             return
         recipient = self.recipient_var.get()
         if recipient == "(Broadcast)":
-            messagebox.showerror("Fehler", "Bilder k\u00f6nnen nicht an alle gesendet werden")
+            messagebox.showerror("Fehler", "Bilder können nicht an alle gesendet werden")
             return
         if recipient not in self.known_users:
-            messagebox.showerror("Fehler", "Empf\u00e4nger nicht gefunden")
+            messagebox.showerror("Fehler", "Empfänger nicht gefunden")
             return
         try:
             with open(filepath, "rb") as f:
@@ -224,9 +285,15 @@ class ChatGUI:
         except Exception as e:
             self.queue_update(f"[Fehler] Bildsendung: {str(e)}")
 
+    ##
+    # @brief Fügt eine neue Nachricht (und optional ein Bild) in die Anzeige-Queue ein.
+    #
     def queue_update(self, message, image_path=None):
         self.chat_queue.put((message, image_path))
 
+    ##
+    # @brief Holt Nachrichten/Bilder aus der Queue und zeigt sie im Chat an.
+    #
     def process_queue(self):
         try:
             while True:
@@ -237,6 +304,9 @@ class ChatGUI:
             pass
         self.master.after(100, self.process_queue)
 
+    ##
+    # @brief Fügt eine Nachricht und ggf. ein Bild in die Chat-Anzeige ein.
+    #
     def update_chat_display(self, message, image_path=None):
         self.chat_display.config(state=tk.NORMAL)
         self.chat_display.insert(tk.END, message + "\n")
@@ -247,12 +317,15 @@ class ChatGUI:
                 photo = ImageTk.PhotoImage(img)
                 self.chat_display.image_create(tk.END, image=photo)
                 self.chat_display.insert(tk.END, "\n")
-                self.chat_display_refs.append(photo)  # Verhindert GC
+                self.chat_display_refs.append(photo)  # Verhindert das Bild-Garbage-Collecting
             except Exception as e:
                 self.chat_display.insert(tk.END, f"[Fehler beim Bildanzeigen: {str(e)}]\n")
         self.chat_display.config(state=tk.DISABLED)
         self.chat_display.see(tk.END)
 
+    ##
+    # @brief Wartet auf UDP-Nachrichten (KNOWNUSERS/Discovery-Info und JOIN).
+    #
     def udp_knownusers_listener(self):
         while self.running:
             try:
@@ -277,6 +350,9 @@ class ChatGUI:
             except Exception as e:
                 self.queue_update(f"[Fehler] UDP Listener: {e}")
 
+    ##
+    # @brief Aktualisiert die Nutzerliste und die Auswahlbox für Empfänger.
+    #
     def update_user_list(self):
         current_users = sorted(self.known_users.keys())
         if self.handle not in current_users:
@@ -291,6 +367,9 @@ class ChatGUI:
         if current_selection not in current_recipients:
             self.recipient_var.set("(Broadcast)")
 
+    ##
+    # @brief Schaltet zwischen Dark- und Light-Mode um.
+    #
     def toggle_theme(self):
         style = ttk.Style()
         if self.dark_mode.get():
@@ -304,6 +383,9 @@ class ChatGUI:
             self.user_listbox.config(bg=TEXT_BG, fg="black")
             self.message_entry.configure(background=TEXT_BG, foreground="black")
 
+    ##
+    # @brief Beendet das Programm und sendet eine LEAVE-Nachricht an den Discovery-Service.
+    #
     def on_close(self):
         if self.running:
             self.running = False
@@ -312,12 +394,15 @@ class ChatGUI:
             self.tcp_socket.close()
             self.master.destroy()
 
+##
+# @brief Startpunkt des Programms: verarbeitet Kommandozeilenargumente und startet die GUI.
+#
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--handle", required=True)
-    parser.add_argument("--port", nargs=2, type=int, required=True)
-    parser.add_argument("--whoisport", type=int, required=True)
+    parser.add_argument("--handle", required=True, help="Dein Benutzername (Handle)")
+    parser.add_argument("--port", nargs=2, type=int, required=True, help="UDP- und TCP-Ports (Discovery-Port kann ignoriert werden)")
+    parser.add_argument("--whoisport", type=int, required=True, help="Discovery-Dienst-Port")
     args = parser.parse_args()
 
     config = {
@@ -325,7 +410,7 @@ if __name__ == "__main__":
         "port": args.port,
         "whoisport": args.whoisport,
         "imagepath": "./received_images",
-        "autoreply": "Ich bin nicht verf\u00fcgbar"
+        "autoreply": "Ich bin nicht verfügbar"
     }
 
     root = tk.Tk()
