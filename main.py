@@ -1,101 +1,73 @@
-import threading 
-import time
-import atexit 
-import signal
-import socket
+# main.py - Vollständig korrigierte Version
 import sys
-from network import load_config, udp_listener, tcp_server, udp_send
-from cli import start_cli, chat_verlauf, parse_args  # parse_args importiert
-
-
-# @file main.py
-# @brief Einstiegspunkt des Chatprogramms. Startet Netzwerkdienste und meldet den Client im lokalen Netzwerk an.
-
-# === CLI-Argumente lesen ===
-args = parse_args()
-debug_mode = getattr(args, "debug", False)
-
-config_path = getattr(args, "config", "config.toml")
-config = load_config(config_path)
-globals()["config"] = config
-
-# === CLI-Overrides anwenden ===
-if args.handle: config["handle"] = args.handle
-if args.port: config["port"] = args.port
-if args.autoreply: config["autoreply"] = args.autoreply
-if args.whoisport: config["whoisport"] = args.whoisport
-if args.broadcast_ip: config["broadcast_ip"] = args.broadcast_ip
-
-# === Konfig extrahieren ===
-broadcast_ip = config.get("broadcast_ip", "255.255.255.255")
-tcp_port, udp_port = config["port"]
-handle = config["handle"]
-whoisport = config["whoisport"]
-known_users = {}
-
-# === UDP-Nachrichten verarbeiten ===
-def handle_udp_message(message, addr):
-    if debug_mode:
-        print(f"[DEBUG] UDP empfangen: {message} von {addr}")
-    parts = message.strip().split()
-    if parts[0] == "JOIN" and len(parts) == 3:
-        user_handle = parts[1]
-        user_port = int(parts[2])
-        known_users[user_handle] = (addr[0], user_port)
-        print(f"[INFO] Neuer Nutzer: {user_handle} @ {addr[0]}:{user_port}")
-
-
-# === TCP-Nachrichten verarbeiten ===
-def handle_tcp_message(message):
-    if debug_mode:
-        print(f"[DEBUG] TCP empfangen: {message}")
-    print(f"[MSG] {message}")
-    chat_verlauf.append(message)
-
-# === Lokale IP anzeigen ===
-def get_own_ip():
+import socket
+import subprocess
+import threading
+import time
+import argparse
+from network import load_config, udp_send, udp_listener, get_own_ip
+ 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--handle", required=True, help="Dein Benutzername")
+    parser.add_argument("--port", nargs=2, type=int, required=True,
+                       help="UDP- und TCP-Ports (z. B. 5000 5001)")
+    parser.add_argument("--whoisport", type=int, required=True,
+                       help="Discovery-Dienst-Port")
+    parser.add_argument("--autoreply", help="Automatische Antwortnachricht")
+    return parser.parse_args()
+ 
+def discovery_running(port):
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.connect(("8.8.8.8", 80))
-            return s.getsockname()[0]
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.bind(("", port))
+        s.close()
+        return False
     except:
-        return "127.0.0.1"
-if debug_mode:
-    print(f"[DEBUG] Konfigurationsdatei: {config_path}")
-    print("[DEBUG] Aktive Konfiguration:")
-    for key, value in config.items():
-        print(f"  {key} = {value}")
-
-print(f"[INFO] {handle} erreichbar unter {get_own_ip()}:{tcp_port}")
-
-# === Beenden-Handler ===
-def clean_exit():
-    udp_send(f"LEAVE {handle}", broadcast_ip, whoisport)
-    print("[INFO] LEAVE gesendet.")
-
-atexit.register(clean_exit)
-signal.signal(signal.SIGINT, lambda s, f: (clean_exit(), sys.exit(0)))
-
-# === Listener starten ===
-if config_path != "config2.toml":
-    threading.Thread(target=udp_listener, args=(whoisport, handle_udp_message), daemon=True).start()
-threading.Thread(target=udp_listener, args=(udp_port, handle_udp_message), daemon=True).start()
-threading.Thread(target=tcp_server, args=(tcp_port, handle_tcp_message), daemon=True).start()
-
-# === Netzwerkbeitritt ===
-time.sleep(1)
-udp_send(f"JOIN {handle} {tcp_port}", broadcast_ip, whoisport)
-
-time.sleep(1)
-udp_send("WHO", broadcast_ip, whoisport)
-
-
-# === CLI starten ===
-try:
-    start_cli(known_users)
-except Exception as e:
-    print(f"[WARNUNG] CLI nicht verfügbar: {e}")
-    while True:
-        time.sleep(1)
-
-
+        return True
+ 
+def main():
+    args = parse_args()
+    config = load_config()
+   
+    # Merge args with config
+    config["handle"] = args.handle
+    config["port"] = args.port
+    config["whoisport"] = args.whoisport
+    if args.autoreply:
+        config["autoreply"] = args.autoreply
+ 
+    # Start discovery if not running
+    if not discovery_running(config["whoisport"]):
+        print("Starte Discovery-Dienst...")
+        subprocess.Popen([sys.executable, "discovery.py"])
+        time.sleep(1)  # Wait for discovery to start
+ 
+    # Send initial messages
+    join_msg = f"JOIN {config['handle']} {config['port'][1]}"
+    udp_send(join_msg, "255.255.255.255", config["whoisport"])
+    time.sleep(0.5)
+    udp_send("WHO", "255.255.255.255", config["whoisport"])
+ 
+    # Start CLI/GUI
+    print("1) CLI\n2) GUI")
+    choice = input("> ").strip()
+   
+    if choice == "1":
+        from cli import start_cli
+        start_cli(
+            handle=config["handle"],
+            port=config["port"][1],  # TCP port
+            whoisport=config["whoisport"]
+        )
+    elif choice == "2":
+        subprocess.Popen([
+            sys.executable,
+            "chat_gui_client_verbessert.py",
+            "--handle", config["handle"],
+            "--port", str(config["port"][0]), str(config["port"][1]),
+            "--whoisport", str(config["whoisport"])
+        ])
+ 
+if __name__ == "__main__":
+    main()
