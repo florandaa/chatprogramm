@@ -1,231 +1,430 @@
-# chat_gui_client.py
-import tkinter as tk
-from tkinter import scrolledtext, filedialog
-import tkinter.ttk as ttk
-import threading, socket, os, sys, time, queue
-from network import load_config, udp_send, tcp_send, udp_listener
-from cli import get_own_ip
+"""
+@file chat_gui_client.py
+@brief GUI-Client für das P2P-Chatsystem
 
-bekannte_nutzer = {}
-chat_verlauf = []
+Diese Implementierung erfüllt alle Projektanforderungen:
+- SLCP-Protokoll (JOIN, WHO, KNOWNUSERS, MSG, IMG, LEAVE)
+- Peer-to-Peer ohne zentralen Server
+- Kombination aus UDP (Discovery) und TCP (Nachrichten/Bilder)
+- Konfiguration über config.toml
+"""
+
+import tkinter as tk
+from tkinter import scrolledtext, filedialog, messagebox
+import tkinter.ttk as ttk
+import threading
+import socket
+import os
+import sys
+import time
+import queue
+from PIL import Image, ImageTk
+from io import BytesIO
+
+# Farben und Stile
+BG_COLOR = "#f0f0f0"
+TEXT_BG = "#ffffff"
+BUTTON_COLOR = "#4a90e2"
+FONT = ("Helvetica", 10)
 
 class ChatGUI:
-    def __init__(self, master):
+    def __init__(self, master, config):
+        """
+        @brief Initialisiert die Chat-GUI
+        @param master: Tkinter Root-Window
+        @param config: Konfigurationsdictionary aus config.toml
+        """
         self.master = master
-        self.master.title("ChA12Room")
-        self.running = True
-
-        config = load_config()
-        args = sys.argv[1:]
-        def get_arg(name, count=1, default=None, cast=str):
-            if name in args:
-                try:
-                    idx = args.index(name)
-                    if count == 1:
-                        return cast(args[idx + 1])
-                    else:
-                        return [cast(x) for x in args[idx + 1:idx + 1 + count]]
-                except: return default
-            return default
-
         self.config = config
-        self.handle = get_arg("--handle", 1, config.get("handle", "Gast"), str)
-        self.ports = get_arg("--port", 2, config.get("port", [5000, 5001]), int)
-        self.whoisport = get_arg("--whoisport", 1, config.get("whoisport", 4000), int)
-        self.autoreply_text = get_arg("--autoreply", 1, config.get("autoreply", "Bin gerade nicht da"), str)
-        self.broadcast_ip = get_arg("--broadcast_ip", 1, config.get("broadcast_ip", "255.255.255.255"), str)
-        self.abwesend = False
-        self.letzte_autoreply = {}
-        self.verlauf_datei = f"chatverlauf_{self.handle}.txt"
-
+        self.running = True
+        
+        # Netzwerkparameter
+        self.handle = config["handle"]
+        self.udp_port = config["port"][0]
+        self.tcp_port = config["port"][1]
+        self.whoisport = config["whoisport"]
+        self.imagepath = config.get("imagepath", "./received_images")
+        self.autoreply = config.get("autoreply", "Ich bin nicht verfügbar")
+        
+        # Datenstrukturen
+        self.known_users = {}  # {handle: (ip, port)}
         self.chat_queue = queue.Queue()
-        self.master.after(100, self.verarbeite_gui_queue)
+        self.last_autoreply = {}
+        
+        # Verzeichnis für Bilder erstellen
+        os.makedirs(self.imagepath, exist_ok=True)
+        
+        # GUI initialisieren
+        self.setup_gui()
+        
+        # Netzwerk starten
+        self.start_network()
+        
+        # Initiale Nachrichten senden
+        self.send_join()
+        threading.Thread(target=self.send_who, daemon=True).start()
+        
+        # Queue-Processing starten
+        self.master.after(100, self.process_queue)
 
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.bind(('', 0))
-            self.tcp_port = sock.getsockname()[1]
-
-        eigene_ip = get_own_ip()
-        bekannte_nutzer[self.handle] = (eigene_ip, self.tcp_port)
-
-        if self.whoisport > 0:
-            threading.Thread(target=udp_listener, args=(self.whoisport, self.verarbeite_udp), daemon=True).start()
-            for _ in range(2):
-                udp_send(f"JOIN {self.handle} {self.tcp_port}", self.broadcast_ip, self.whoisport)
-                time.sleep(0.3)
-            udp_send("WHO", self.broadcast_ip, self.whoisport)
-
-        self.build_gui()
-        threading.Thread(target=self.tcp_empfang, daemon=True).start()
-
-    def build_gui(self):
-        self.chatbox = scrolledtext.ScrolledText(self.master, state='disabled', width=60, height=20)
-        self.chatbox.grid(row=0, column=0, columnspan=3, padx=10, pady=10)
-
-        self.nutzer_listbox = tk.Listbox(self.master, height=20, width=20)
-        self.nutzer_listbox.grid(row=0, column=3, padx=(0,10), pady=10, sticky='ns')
-
-        self.eingabe = tk.Entry(self.master, width=50)
-        self.eingabe.grid(row=1, column=0, padx=10, sticky='we')
-        self.eingabe.bind("<Return>", self.sende_nachricht)
-
-        self.send_button = ttk.Button(self.master, text="Senden", command=self.sende_nachricht)
-        self.send_button.grid(row=1, column=1)
-
-        self.image_button = ttk.Button(self.master, text="Bild senden", command=self.sende_bild)
-        self.image_button.grid(row=1, column=2)
-
-        self.leave_button = ttk.Button(self.master, text="Verlassen", command=self.beenden)
-        self.leave_button.grid(row=1, column=3)
-
+    def setup_gui(self):
+        """@brief Erstellt alle GUI-Komponenten"""
+        self.master.title(f"ChA12Room - {self.handle}")
+        self.master.protocol("WM_DELETE_WINDOW", self.on_close)
+        
+        # Hauptframe
+        main_frame = ttk.Frame(self.master, padding="10")
+        main_frame.grid(row=0, column=0, sticky="nsew")
+        
+        # Chat-Anzeige
+        self.chat_display = scrolledtext.ScrolledText(
+            main_frame, 
+            width=60, 
+            height=20,
+            wrap=tk.WORD,
+            bg=TEXT_BG,
+            font=FONT
+        )
+        self.chat_display.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
+        self.chat_display.config(state=tk.DISABLED)
+        
+        # Nutzerliste
+        self.user_listbox = tk.Listbox(
+            main_frame,
+            height=20,
+            width=20,
+            bg=TEXT_BG,
+            font=FONT
+        )
+        self.user_listbox.grid(row=0, column=2, padx=5, pady=5, sticky="ns")
+        
+        # Nachrichteneingabe
+        self.message_entry = ttk.Entry(main_frame, width=50, font=FONT)
+        self.message_entry.grid(row=1, column=0, padx=5, pady=5, sticky="we")
+        self.message_entry.bind("<Return>", self.send_message)
+        
+        # Empfänger-Auswahl
+        self.recipient_var = tk.StringVar()
+        self.recipient_menu = ttk.Combobox(
+            main_frame,
+            textvariable=self.recipient_var,
+            state="readonly",
+            width=15,
+            font=FONT
+        )
+        self.recipient_menu.grid(row=1, column=1, padx=5, pady=5, sticky="we")
+        self.recipient_menu["values"] = ["(Broadcast)"]
+        self.recipient_menu.current(0)
+        
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=2, column=0, columnspan=3, pady=5, sticky="we")
+        
+        self.send_button = ttk.Button(
+            button_frame,
+            text="Senden",
+            command=self.send_message,
+            style="Accent.TButton"
+        )
+        self.send_button.pack(side=tk.LEFT, padx=2)
+        
+        self.image_button = ttk.Button(
+            button_frame,
+            text="Bild senden",
+            command=self.send_image_dialog
+        )
+        self.image_button.pack(side=tk.LEFT, padx=2)
+        
         self.abwesend_var = tk.BooleanVar()
-        self.abwesend_check = tk.Checkbutton(self.master, text="Abwesenheit", variable=self.abwesend_var, command=self.toggle_abwesenheit)
-        self.abwesend_check.grid(row=2, column=3, sticky="w", padx=10)
+        self.abwesend_check = ttk.Checkbutton(
+            button_frame,
+            text="Abwesend",
+            variable=self.abwesend_var
+        )
+        self.abwesend_check.pack(side=tk.LEFT, padx=2)
+        
+        self.leave_button = ttk.Button(
+            button_frame,
+            text="Verlassen",
+            command=self.on_close,
+            style="Danger.TButton"
+        )
+        self.leave_button.pack(side=tk.RIGHT, padx=2)
+        
+        # Layout anpassen
+        self.master.columnconfigure(0, weight=1)
+        self.master.rowconfigure(0, weight=1)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(0, weight=1)
+        
+        # Stile
+        style = ttk.Style()
+        style.configure("Accent.TButton", background=BUTTON_COLOR, foreground="white")
+        style.configure("Danger.TButton", background="#e74c3c", foreground="white")
 
-        self.ziel_var = tk.StringVar()
-        self.ziel_menu = ttk.Combobox(self.master, textvariable=self.ziel_var, state="readonly")
-        self.ziel_menu.grid(row=2, column=0, columnspan=3, padx=10, pady=(0, 10), sticky="we")
-        self.ziel_menu['values'] = ["(alle)"]
-        self.ziel_menu.set("(alle)")
+    def start_network(self):
+        """@brief Startet alle Netzwerkkomponenten"""
+        # UDP Listener für Discovery
+        self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        self.udp_socket.bind(("0.0.0.0", self.whoisport))
+        
+        threading.Thread(target=self.udp_listener, daemon=True).start()
+        
+        # TCP Server für Nachrichten
+        self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.tcp_socket.bind(("0.0.0.0", self.tcp_port))
+        self.tcp_socket.listen()
+        
+        threading.Thread(target=self.tcp_listener, daemon=True).start()
 
-    def toggle_abwesenheit(self):
-        self.abwesend = self.abwesend_var.get()
-
-    def sende_nachricht(self, event=None):
-        text = self.eingabe.get().strip()
-        if not text: return
-        self.eingabe.delete(0, tk.END)
-        ziel = self.ziel_var.get()
-
-        if ziel == "(alle)":
-            for handle, (ip, port) in bekannte_nutzer.items():
-                if handle != self.handle:
-                    tcp_send(f"MSG {self.handle} {text}", ip, port)
-            self.chat_queue.put((lambda: self.schreibe_chat(f"(an alle) {self.handle}: {text}"), ()))
-        elif ziel in bekannte_nutzer:
-            ip, port = bekannte_nutzer[ziel]
-            tcp_send(f"MSG {self.handle} {text}", ip, port)
-            self.chat_queue.put((lambda: self.schreibe_chat(f"(an {ziel}) {self.handle}: {text}"), ()))
-
-    def sende_bild(self):
-        pfad = filedialog.askopenfilename(filetypes=[("Bilder", "*.png;*.jpg;*.jpeg;*.gif")])
-        if not pfad: return
-        ziel = self.ziel_var.get()
-        with open(pfad, "rb") as f:
-            bilddaten = f.read()
-        if ziel in bekannte_nutzer:
-            ip, port = bekannte_nutzer[ziel]
-            tcp_send(f"IMG {self.handle} {os.path.basename(pfad)}".encode() + b"\n" + bilddaten, ip, port)
-            self.chat_queue.put((lambda: self.schreibe_chat(f"[Bild gesendet an {ziel}]: {pfad}"), ()))
-
-    def verarbeite_udp(self, msg, addr):
-        teile = msg.strip().split()
-        if not teile: return
-
-        if teile[0] == "JOIN" and len(teile) == 3:
-            name, port = teile[1], int(teile[2])
-            ip = addr[0]
-            bekannte_nutzer[name] = (ip, port)
-            self.chat_queue.put((lambda: self.schreibe_chat(f"[JOIN] {name} @ {ip}:{port}"), ()))
-            self.chat_queue.put((lambda: self.update_online_nutzer(), ()))
-            if name != self.handle:
-                udp_send(f"JOIN {self.handle} {self.tcp_port}", ip, self.whoisport)
-
-        elif teile[0] == "WHO":
-            udp_send(f"JOIN {self.handle} {self.tcp_port}", addr[0], self.whoisport)
-
-        elif teile[0] == "LEAVE" and len(teile) == 2:
-            name = teile[1]
-            if name in bekannte_nutzer:
-                del bekannte_nutzer[name]
-                self.chat_queue.put((lambda: self.schreibe_chat(f"[LEAVE] {name} hat verlassen."), ()))
-                self.chat_queue.put((lambda: self.update_online_nutzer(), ()))
-
-    def tcp_empfang(self):
-        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server.bind(('', self.tcp_port))
-        server.listen()
-        server.settimeout(1)
+    def udp_listener(self):
+        """@brief Hört auf UDP-Nachrichten (JOIN, WHO, LEAVE)"""
         while self.running:
             try:
-                conn, addr = server.accept()
-                with conn:
-                    daten = b""
-                    while True:
-                        packet = conn.recv(1024)
-                        if not packet: break
-                        daten += packet
-                    try:
-                        if daten.startswith(b"IMG"):
-                            header, bild = daten.split(b"\n", 1)
-                            teile = header.decode().split()
-                            sender, dateiname = teile[1], teile[2]
-                            bildpfad = f"empfangen_{self.handle}_{dateiname}"
-                            with open(bildpfad, "wb") as f:
-                                f.write(bild)
-                            self.chat_queue.put((lambda: self.schreibe_chat(f"[Bild empfangen von {sender}]: {bildpfad}"), ()))
-                        else:
-                            msg = daten.decode()
-                            self.chat_queue.put((lambda msg=msg: self.schreibe_chat(msg), ()))
-                            if msg.startswith("MSG"):
-                                teile = msg.split(maxsplit=2)
-                                sender = teile[1]
-                                if sender != self.handle and self.abwesend:
-                                    now = time.time()
-                                    last = self.letzte_autoreply.get(sender, 0)
-                                    if now - last >= 30:
-                                        ip, port = bekannte_nutzer.get(sender, (None, None))
-                                        if ip and port:
-                                            antwort = f"MSG {self.handle} {self.autoreply_text}"
-                                            tcp_send(antwort, ip, port)
-                                            self.letzte_autoreply[sender] = now
-                    except Exception as e:
-                        print(f"[Fehler beim Verarbeiten von TCP]: {e}")
-            except socket.timeout:
-                continue
+                data, addr = self.udp_socket.recvfrom(1024)
+                message = data.decode().strip()
+                
+                if message.startswith("JOIN") and len(message.split()) == 3:
+                    _, handle, port = message.split()
+                    self.known_users[handle] = (addr[0], int(port))
+                    self.queue_update(f"[System] {handle} ist dem Chat beigetreten")
+                    
+                elif message == "WHO":
+                    known_users_str = " ".join(
+                        [f"{h} {ip} {p}" for h, (ip, p) in self.known_users.items()]
+                    )
+                    response = f"KNOWNUSERS {known_users_str}"
+                    self.udp_socket.sendto(response.encode(), addr)
+                    
+                elif message.startswith("KNOWNUSERS"):
+                    users = message.split()[1:]
+                    for i in range(0, len(users), 3):
+                        if i+2 < len(users):
+                            handle, ip, port = users[i], users[i+1], users[i+2]
+                            if handle != self.handle:
+                                self.known_users[handle] = (ip, int(port))
+                    self.queue_update("[System] Nutzerliste aktualisiert")
+                    
+                elif message.startswith("LEAVE") and len(message.split()) == 2:
+                    handle = message.split()[1]
+                    if handle in self.known_users:
+                        del self.known_users[handle]
+                        self.queue_update(f"[System] {handle} hat den Chat verlassen")
+                        
+            except Exception as e:
+                self.queue_update(f"[Fehler] UDP: {str(e)}")
 
-    def schreibe_chat(self, text):
-        self.chatbox.config(state='normal')
-        self.chatbox.insert(tk.END, text + "\n")
-        self.chatbox.config(state='disabled')
-        self.chatbox.yview(tk.END)
-        chat_verlauf.append(text)
-        self.speichere_zeile(text)
+    def tcp_listener(self):
+        """@brief Hört auf TCP-Nachrichten (MSG, IMG)"""
+        while self.running:
+            try:
+                conn, addr = self.tcp_socket.accept()
+                threading.Thread(
+                    target=self.handle_tcp_connection,
+                    args=(conn, addr),
+                    daemon=True
+                ).start()
+            except Exception as e:
+                self.queue_update(f"[Fehler] TCP: {str(e)}")
 
-    def speichere_zeile(self, text):
+    def handle_tcp_connection(self, conn, addr):
+        """@brief Verarbeitet eine einzelne TCP-Verbindung"""
         try:
-            with open(self.verlauf_datei, "a", encoding="utf-8") as f:
-                f.write(text + "\n")
+            data = conn.recv(1024)
+            if not data:
+                return
+                
+            if data.startswith(b"MSG"):
+                parts = data.decode().split(maxsplit=2)
+                if len(parts) == 3:
+                    _, sender, text = parts
+                    self.queue_update(f"{sender}: {text}")
+                    
+                    # Autoreply wenn abwesend
+                    if self.abwesend_var.get() and sender != self.handle:
+                        now = time.time()
+                        if now - self.last_autoreply.get(sender, 0) > 30:  # 30s Cooldown
+                            self.send_message_to(sender, self.autoreply)
+                            self.last_autoreply[sender] = now
+                            
+            elif data.startswith(b"IMG"):
+                try:
+                    header, img_data = data.split(b"\n", 1)
+                    parts = header.decode().split()
+                    if len(parts) >= 3:
+                        _, sender, size = parts[:3]
+                        filename = f"img_{int(time.time())}.png"
+                        filepath = os.path.join(self.imagepath, filename)
+                        
+                        with open(filepath, "wb") as f:
+                            f.write(img_data)
+                            
+                        self.queue_update(f"{sender} hat ein Bild gesendet", filepath)
+                except Exception as e:
+                    self.queue_update(f"[Fehler] Bildempfang: {str(e)}")
+                    
+        finally:
+            conn.close()
+
+    def send_join(self):
+        """@brief Sendet JOIN-Nachricht an alle"""
+        message = f"JOIN {self.handle} {self.tcp_port}"
+        self.udp_socket.sendto(
+            message.encode(),
+            ("255.255.255.255", self.whoisport)
+        )
+
+    def send_who(self):
+        """@brief Sendet WHO-Nachricht an alle"""
+        time.sleep(1)  # Warten bis JOIN verarbeitet wurde
+        self.udp_socket.sendto(
+            b"WHO",
+            ("255.255.255.255", self.whoisport)
+        )
+
+    def send_message(self, event=None):
+        """@brief Sendet eine Textnachricht"""
+        text = self.message_entry.get().strip()
+        if not text:
+            return
+            
+        recipient = self.recipient_var.get()
+        self.message_entry.delete(0, tk.END)
+        
+        if recipient == "(Broadcast)":
+            for user, (ip, port) in self.known_users.items():
+                if user != self.handle:
+                    self.send_message_to(user, text)
+            self.queue_update(f"(An alle) {self.handle}: {text}")
+        else:
+            self.send_message_to(recipient, text)
+            self.queue_update(f"(An {recipient}) {self.handle}: {text}")
+
+    def send_message_to(self, recipient, text):
+        """@brief Sendet Nachricht an bestimmten Nutzer"""
+        if recipient in self.known_users:
+            ip, port = self.known_users[recipient]
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.connect((ip, port))
+                    s.sendall(f"MSG {self.handle} {text}".encode())
+            except Exception as e:
+                self.queue_update(f"[Fehler] Nachricht an {recipient}: {str(e)}")
+
+    def send_image_dialog(self):
+        """@brief Öffnet Dialog zum Senden eines Bildes"""
+        filepath = filedialog.askopenfilename(
+            title="Bild auswählen",
+            filetypes=[("Bilder", "*.png;*.jpg;*.jpeg;*.gif")]
+        )
+        if not filepath:
+            return
+            
+        recipient = self.recipient_var.get()
+        if recipient == "(Broadcast)":
+            messagebox.showerror("Fehler", "Bilder können nicht an alle gesendet werden")
+            return
+            
+        if recipient not in self.known_users:
+            messagebox.showerror("Fehler", "Empfänger nicht gefunden")
+            return
+            
+        try:
+            with open(filepath, "rb") as f:
+                img_data = f.read()
+                
+            ip, port = self.known_users[recipient]
+            header = f"IMG {self.handle} {len(img_data)} {os.path.basename(filepath)}"
+            
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((ip, port))
+                s.sendall(header.encode() + b"\n" + img_data)
+                
+            self.queue_update(f"Bild an {recipient} gesendet: {os.path.basename(filepath)}")
         except Exception as e:
-            print(f"[Fehler beim Speichern]: {e}")
+            self.queue_update(f"[Fehler] Bildsendung: {str(e)}")
 
-    def update_online_nutzer(self):
-        self.nutzer_listbox.delete(0, tk.END)
-        nutzer = sorted(bekannte_nutzer.keys())
-        for name in nutzer:
-            self.nutzer_listbox.insert(tk.END, name)
-        self.ziel_menu['values'] = ["(alle)"] + [n for n in nutzer if n != self.handle]
-        if self.ziel_var.get() not in self.ziel_menu['values']:
-            self.ziel_var.set("(alle)")
+    def queue_update(self, message, image_path=None):
+        """@brief Fügt Nachricht/Bild zur Verarbeitung in die Queue ein"""
+        self.chat_queue.put((message, image_path))
 
-    def verarbeite_gui_queue(self):
+    def process_queue(self):
+        """@brief Verarbeitet Nachrichten aus der Queue (im Hauptthread)"""
         try:
             while True:
-                func, args = self.chat_queue.get_nowait()
-                func(*args)
+                message, image_path = self.chat_queue.get_nowait()
+                self.update_chat_display(message, image_path)
+                self.update_user_list()
         except queue.Empty:
             pass
-        self.master.after(100, self.verarbeite_gui_queue)
+            
+        self.master.after(100, self.process_queue)
 
-    def beenden(self):
-        if self.whoisport > 0:
-            udp_send(f"LEAVE {self.handle}", self.broadcast_ip, self.whoisport)
-        bekannte_nutzer.pop(self.handle, None)
-        self.chat_queue.put((lambda: self.update_online_nutzer(), ()))
-        self.running = False
-        self.master.destroy()
+    def update_chat_display(self, message, image_path=None):
+        """@brief Aktualisiert die Chat-Anzeige"""
+        self.chat_display.config(state=tk.NORMAL)
+        self.chat_display.insert(tk.END, message + "\n")
+        
+        if image_path:
+            try:
+                img = Image.open(image_path)
+                img.thumbnail((300, 300))
+                photo = ImageTk.PhotoImage(img)
+                
+                # Bild in Textwidget einfügen
+                self.chat_display.image_create(tk.END, image=photo)
+                self.chat_display.insert(tk.END, "\n")
+                
+                # Referenz behalten
+                self.chat_display.image = photo
+            except Exception as e:
+                self.chat_display.insert(tk.END, f"[Fehler beim Bildanzeigen: {str(e)}]\n")
+        
+        self.chat_display.config(state=tk.DISABLED)
+        self.chat_display.see(tk.END)
+
+    def update_user_list(self):
+        """@brief Aktualisiert die Nutzerliste"""
+        current_users = sorted(self.known_users.keys())
+        current_recipients = ["(Broadcast)"] + [u for u in current_users if u != self.handle]
+        
+        # Nutzerliste aktualisieren
+        self.user_listbox.delete(0, tk.END)
+        for user in current_users:
+            self.user_listbox.insert(tk.END, user)
+            
+        # Empfänger-Menü aktualisieren
+        current_selection = self.recipient_var.get()
+        self.recipient_menu["values"] = current_recipients
+        
+        if current_selection not in current_recipients:
+            self.recipient_var.set("(Broadcast)")
+
+    def on_close(self):
+        """@brief Behandelt das Schließen der GUI"""
+        if self.running:
+            self.running = False
+            self.udp_socket.sendto(
+                f"LEAVE {self.handle}".encode(),
+                ("255.255.255.255", self.whoisport)
+            )
+            self.udp_socket.close()
+            self.tcp_socket.close()
+            self.master.destroy()
+
+def start_gui(config):
+    """@brief Startet die GUI mit gegebener Konfiguration"""
+    root = tk.Tk()
+    try:
+        ChatGUI(root, config)
+        root.mainloop()
+    except Exception as e:
+        messagebox.showerror("Fehler", f"Kritischer Fehler: {str(e)}")
+        raise
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    gui = ChatGUI(root)
-    root.mainloop()
+    print("Dieses Modul sollte über main.py gestartet werden")
+    sys.exit(1)

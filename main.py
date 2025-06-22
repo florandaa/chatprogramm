@@ -13,7 +13,7 @@ import threading
 import time
 import argparse
 from network import load_config, udp_send, udp_listener, get_own_ip
-
+from chat_gui_client_verbessert import start_gui
 ##
 # @brief Verarbeitet Kommandozeilenargumente.
 #
@@ -102,4 +102,15 @@ def main():
  
 # Einstiegspunkt
 if __name__ == "__main__":
-    main()
+    # Nur ausführen, wenn Parameter übergeben wurden
+    if len(sys.argv) > 1:
+        config = {
+            "handle": sys.argv[sys.argv.index("--handle")+1],
+            "port": [int(sys.argv[sys.argv.index("--port")+1]), 
+                     int(sys.argv[sys.argv.index("--port")+2])],
+            "whoisport": int(sys.argv[sys.argv.index("--whoisport")+1])
+        }
+        start_gui(config)
+    else:
+        print("Dieses Modul sollte über main.py gestartet werden")
+        sys.exit(1)

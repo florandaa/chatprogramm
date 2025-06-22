@@ -26,7 +26,7 @@ def print_system(msg):
 
 def print_message(sender, msg):
     print(f"\n{format_timestamp()} {colors.GREEN}✉️ {sender}: {msg}{colors.END}")
-    print(f"Sara> ", end="", flush=True)
+    print(f"load.config[handle] ", end="", flush=True)
 
 def print_error(msg):
     print(f"{format_timestamp()} {colors.RED}❌ {msg}{colors.END}")
