@@ -8,6 +8,7 @@ Dies ist ein Peer-to-Peer (P2P) Chatprogramm, das im Rahmen des Moduls *Betriebs
 
 - Python 3.10 oder höher (getestet unter Linux und macOS)
 - `toml`-Modul: `pip install toml`
+- pip install toml pillow
 
 ### Schritte
 
@@ -135,6 +136,8 @@ IMG Ilirjon 35463
 
 - Architekturdiagramm der Prozess-Kommunikation  
 - Ablaufdiagramme für JOIN, WHO, MSG etc.
+
+
 ![Gesamt-Ablaufdiagramm](docs/Ablaufdiagramm.png)
 
 
