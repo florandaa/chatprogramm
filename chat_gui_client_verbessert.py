@@ -1,5 +1,5 @@
 # @file chat_gui_client_final.py
-# @brief Finale Version der Chat-GUI mit Dark Mode, Bildversand, Discovery-Integration und Bugfixes
+# @brief Finale Version der Chat-GUI (funktionsfähig, Discovery-konform!)
 
 import tkinter as tk
 from tkinter import scrolledtext, filedialog, messagebox
@@ -27,7 +27,7 @@ class ChatGUI:
         self.running = True
 
         self.handle = config["handle"]
-        self.udp_port = config["port"][0]
+        self.udp_port = config["port"][0]    # IGNORIERT (UDP-Discovery-Port verwaltet Discovery selbst)
         self.tcp_port = config["port"][1]
         self.whoisport = config["whoisport"]
         self.imagepath = config.get("imagepath", "./received_images")
@@ -41,11 +41,17 @@ class ChatGUI:
         os.makedirs(self.imagepath, exist_ok=True)
 
         self.setup_gui()
-        self.start_network()
 
+        # ==== KORREKTER UDP-PORT: Der Client nutzt EIGENEN Port ====
+        self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        self.udp_socket.bind(("", 0))  # OS sucht freien Port!
+        self.my_udp_port = self.udp_socket.getsockname()[1]
+
+        self.start_network()
         self.send_join()
-        threading.Thread(target=self.listen_for_joins, daemon=True).start()
-        threading.Thread(target=self.send_who, daemon=True).start()
+        time.sleep(0.2)
+        self.send_who()
 
         self.master.after(100, self.process_queue)
 
@@ -109,19 +115,7 @@ class ChatGUI:
         style.configure("Danger.TButton", background="#e74c3c", foreground="white", font=FONT)
 
     def start_network(self):
-        self.join_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.join_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.join_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        try:
-            self.join_socket.bind(("", self.whoisport))
-            threading.Thread(target=self.listen_for_joins, daemon=True).start()
-        except OSError:
-            self.queue_update("[Info] JOIN-Empfang deaktiviert (Discovery l\u00e4uft bereits)")
-
-        self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self.udp_socket.bind(("", 0))
-
+        # TCP-Server (für MSG/IMG)
         self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
@@ -173,11 +167,10 @@ class ChatGUI:
             conn.close()
 
     def send_join(self):
-        message = f"JOIN {self.handle} {self.tcp_port}"
+        message = f"JOIN {self.handle} {self.tcp_port} {self.my_udp_port}"
         self.udp_socket.sendto(message.encode(), ("255.255.255.255", self.whoisport))
 
     def send_who(self):
-        time.sleep(1)
         self.udp_socket.sendto(b"WHO", ("255.255.255.255", self.whoisport))
 
     def send_message(self, event=None):
@@ -260,21 +253,6 @@ class ChatGUI:
         self.chat_display.config(state=tk.DISABLED)
         self.chat_display.see(tk.END)
 
-    def listen_for_joins(self):
-        while self.running:
-            try:
-                data, addr = self.join_socket.recvfrom(1024)
-                message = data.decode().strip()
-                if message.startswith("JOIN"):
-                    parts = message.split()
-                    if len(parts) == 3:
-                        handle, port = parts[1], int(parts[2])
-                        if handle != self.handle:
-                            self.known_users[handle] = (addr[0], port)
-                            self.queue_update(f"[System] {handle} ist dem Chat beigetreten")
-            except:
-                pass
-
     def udp_knownusers_listener(self):
         while self.running:
             try:
@@ -289,8 +267,15 @@ class ChatGUI:
                             if handle != self.handle:
                                 self.known_users[handle] = (ip, port)
                     self.queue_update("[System] Nutzerliste aktualisiert")
-            except:
-                pass
+                elif message.startswith("JOIN"):
+                    parts = message.split()
+                    if len(parts) >= 3:
+                        handle, port = parts[1], int(parts[2])
+                        if handle != self.handle:
+                            self.known_users[handle] = (addr[0], port)
+                            self.queue_update(f"[System] {handle} ist dem Chat beigetreten")
+            except Exception as e:
+                self.queue_update(f"[Fehler] UDP Listener: {e}")
 
     def update_user_list(self):
         current_users = sorted(self.known_users.keys())
