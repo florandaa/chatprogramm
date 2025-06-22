@@ -25,6 +25,21 @@ def udp_listener(port, callback=None):
         if callback:
             callback(message, addr)
  
-
- 
+def udp_send(message, ip, port):
+   
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # WICHTIG
+   
+    if debug_mode:
+        print(f"[DEBUG] UDP senden an {ip}:{port} → {message}")
+   
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    if ip.endswith(".255"):
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    try:
+        sock.sendto(message.encode(), (ip, port))
+    except Exception as e:
+        print(f"[FEHLER] UDP-Senden: {e}")
+    finally:
+        sock.close()
  
