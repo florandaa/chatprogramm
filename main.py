@@ -23,14 +23,13 @@ from network import load_config, udp_send, udp_listener, get_own_ip
 # @return args: Ein Namespace-Objekt mit den Argumentwerten.
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--handle", required=True, help="Dein Benutzername")
-    parser.add_argument("--port", nargs=2, type=int, required=True,
+    parser.add_argument("--handle", help="Dein Benutzername")
+    parser.add_argument("--port", nargs=2, type=int,
                        help="UDP- und TCP-Ports (z. B. 5000 5001)")
-    parser.add_argument("--whoisport", type=int, required=True,
+    parser.add_argument("--whoisport", type=int,
                        help="Discovery-Dienst-Port")
     parser.add_argument("--autoreply", help="Automatische Antwortnachricht")
     return parser.parse_args()
-
 ##
 # @brief Prüft, ob der Discovery-Dienst bereits läuft.
 #
@@ -49,16 +48,24 @@ def discovery_running(port):
         return True
 
 def main():
-    args = parse_args()
+    # Zuerst Konfiguration aus Datei laden
     config = load_config()
+    # Argumente parsen (optional)
+    args = parse_args()
    
-    # Merge config with arguments
-    config.update({
-        "handle": args.handle,
-        "port": args.port,
-        "whoisport": args.whoisport,
-        "autoreply": args.autoreply if args.autoreply else config.get("autoreply", "")
-    })
+     # Argumente parsen (optional)
+    args = parse_args()
+    
+    # Kommandozeilenargumente überschreiben die Konfiguration
+    if args.handle:
+        config["handle"] = args.handle
+    if args.port:
+        config["port"] = args.port
+    if args.whoisport:
+        config["whoisport"] = args.whoisport
+    if args.autoreply:
+        config["autoreply"] = args.autoreply
+
 
     # Start discovery service if not running
     if not discovery_running(config["whoisport"]):
