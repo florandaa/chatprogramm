@@ -152,3 +152,9 @@ doxygen Doxyfile
 ```
 
 Ergebnis: `docs/html/index.html` im Browser öffnen.
+
+**Hinweis für macOS-Nutzer:** Falls `python3` bei euch nicht Python 3.11 startet, kann folgender Alias lokal gesetzt werden:
+
+```bash
+echo 'alias python3="python3.11"' >> ~/.zshrc && source ~/.zshrc
+```
